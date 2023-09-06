@@ -8,8 +8,10 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
@@ -140,6 +142,7 @@ fun MainScreen() {
     ) { padding ->
         Column(
             modifier = Modifier
+                .fillMaxSize()
                 .padding(padding)
         ) {
             when (selectedTab) {
@@ -190,8 +193,9 @@ fun FetchAndDisplayStorms(apiService: ApiService) {
         }
     }
 
-    Column {
-        stormsData.forEach { (storm, imageBitmap) ->
+    LazyColumn {
+        items(stormsData.size) { index ->
+            val (storm, imageBitmap) = stormsData[index]
             val id = storm["id"] ?: ""
             val date = storm["date"] ?: ""
 
@@ -200,7 +204,7 @@ fun FetchAndDisplayStorms(apiService: ApiService) {
                 Image(
                     bitmap = it,
                     contentDescription = "Image for $id",
-                    modifier = Modifier.size(200.dp)  // Adjust size as needed
+                    modifier = Modifier.fillMaxSize()
                 )
             }
         }

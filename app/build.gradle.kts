@@ -67,6 +67,17 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
+    // define a BOM and its version
+    implementation(platform("com.squareup.okhttp3:okhttp-bom:4.10.0"))
+
+    // define any required OkHttp artifacts without version
+    implementation("com.squareup.okhttp3:okhttp")
+    implementation("com.squareup.okhttp3:logging-interceptor")
+
+    implementation("com.google.code.gson:gson:2.10.1")
+
+    implementation("com.squareup.okhttp3:okhttp:4.10.0")
+
 
     val composeBom = platform("androidx.compose:compose-bom:2023.08.00")
     implementation(composeBom)

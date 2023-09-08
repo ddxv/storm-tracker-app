@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.glance.Button
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -99,27 +100,14 @@ class MyWidget : GlanceAppWidget() {
                             .fillMaxSize()
                             .clickable(actionRunCallback<RefreshAction>()),
                     )
-                    Text(
-                        text = "Source: ${currentState(sourceKey)}",
-                        style = TextStyle(
-                            fontSize = 12.sp,
-                            fontStyle = FontStyle.Italic,
-                            textAlign = TextAlign.End,
-                            textDecoration = TextDecoration.Underline,
-                        ),
+                    Button(
+                        text = "NEXT", onClick = actionRunCallback<NextImageAction>(),
                         modifier = GlanceModifier
                             .fillMaxWidth()
                             .padding(8.dp)
                             .background(GlanceTheme.colors.primary)
-                            .clickable(
-                                actionStartActivity(
-                                    Intent(
-                                        Intent.ACTION_VIEW,
-                                        Uri.parse(currentState(sourceUrlKey)),
-                                    ),
-                                ),
-                            ),
                     )
+
                 } else {
                     CircularProgressIndicator()
 
@@ -179,6 +167,18 @@ class RefreshAction : ActionCallback {
         GlanceAppWidgetManager(context).getAppWidgetSizes(glanceId).forEach { size ->
             ImageWorker.enqueue(context, size, glanceId, force = true)
         }
+    }
+}
+
+class NextImageAction : ActionCallback {
+    override suspend fun onAction(
+        context: Context,
+        glanceId: GlanceId,
+        parameters: ActionParameters,
+    ) {
+        // TODO: Implement logic to fetch the next image and update the widget with it.
+        // For now, just to demonstrate, let's refresh the widget
+        RefreshAction().onAction(context, glanceId, parameters)
     }
 }
 

@@ -171,6 +171,7 @@ fun MainScreen(stormsData: List<StormImageData>) {
 
 suspend fun fetchStorms(apiService: ApiService, onNewDataFetched: (StormImageData) -> Unit) {
     val fetchedStorms = apiService.getStorms()
+
     val storms = fetchedStorms["storms"] ?: emptyList()
 
     // This will hold our data after checking for images

@@ -67,6 +67,28 @@ class ApiService {
         }
     }
 
+    suspend fun getStormCompareImageList(): List<ByteArray> {
+        val fetchedStorms = getStorms()
+        val storms = fetchedStorms["storms"] ?: emptyList()
+
+        val listCompareImages = mutableListOf<ByteArray>()
+        for (storm in storms) {
+            // Launch a new coroutine for each storm
+            val date = storm["date"] ?: continue
+            val stormId = storm["id"] ?: continue
+            Log.i("ApiService", "stormId: $stormId")
+            try {
+                val imageBytes = getStormCompareImage(date, stormId)
+                listCompareImages.add(imageBytes)
+            } catch (e: Exception) {
+                Log.e("ApiService", "Failed to get stormId: $stormId with error $e")
+
+            }
+        }
+        return listCompareImages
+    }
+
+
     suspend fun getStorms(): Map<String, List<Map<String, String>>> {
         val url = "$myBaseUrl/"
         Log.i("ApiService", "Calling url: $url")

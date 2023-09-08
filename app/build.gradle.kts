@@ -66,6 +66,7 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
     // define a BOM and its version
     implementation(platform("com.squareup.okhttp3:okhttp-bom:4.10.0"))
@@ -119,8 +120,6 @@ dependencies {
     //implementation("androidx.compose.runtime:runtime-livedata")
     // Optional - Integration with RxJava
     //implementation("androidx.compose.runtime:runtime-rxjava2")
-
-
 
 
 }

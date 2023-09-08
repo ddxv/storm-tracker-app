@@ -8,9 +8,9 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
@@ -38,9 +38,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.modifier.modifierLocalConsumer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 
 class MainActivity : ComponentActivity() {
@@ -147,7 +148,6 @@ fun MainScreen() {
         ) {
             when (selectedTab) {
                 0 -> {
-                    Text("A")
                     FetchAndDisplayStorms(apiService)
                 }
 
@@ -166,45 +166,94 @@ fun MainScreen() {
 @Composable
 fun FetchAndDisplayStorms(apiService: ApiService) {
     val context = LocalContext.current
-    var stormsData by remember { mutableStateOf(emptyList<Pair<Map<String, String>, ImageBitmap?>>()) }
+    var stormsData by remember { mutableStateOf(emptyList<StormImageData>()) }
 
     LaunchedEffect(Unit) {
-        coroutineScope {
-            val fetchedStorms = apiService.getStorms()
-            val storms = fetchedStorms["storms"] ?: emptyList()
+        val fetchedStorms = apiService.getStorms()
+        val storms = fetchedStorms["storms"] ?: emptyList()
 
-            // This will hold our data after checking for images
-            val stormsWithImageData = mutableListOf<Pair<Map<String, String>, ImageBitmap?>>()
+        // This will hold our data after checking for images
+        val stormsWithImageData = mutableListOf<StormImageData>()
 
-            // Check for image asynchronously for each storm
-            storms.forEach { storm ->
+        storms.forEach { storm ->
+            // Launch a new coroutine for each storm
+            launch {
                 val id = storm["id"] ?: ""
                 val date = storm["date"] ?: ""
-                val hasImage = apiService.hasStormImage(date, id)
                 var imageBitmap: ImageBitmap? = null
-                if (hasImage) {
+                var myImageBitmap: ImageBitmap? = null
+                var compareImageBitmap: ImageBitmap? = null
+
+                if (apiService.hasStormImage(date, id)) {
                     val imageBytes = apiService.getStormImage(date, id)
                     val bitmap = byteArrayToBitmap(imageBytes)
                     imageBitmap = bitmap.asImageBitmap()
                 }
-                stormsWithImageData.add(storm to imageBitmap)
+
+                try {
+                    val myImageBytes = apiService.getStormMyImage(date, id)
+                    val myBitmap = byteArrayToBitmap(myImageBytes)
+                    myImageBitmap = myBitmap.asImageBitmap()
+                } catch (e: Exception) {
+                    // Handle error or just log it
+                }
+
+                try {
+                    val myImageBytes = apiService.getStormCompareImage(date, id)
+                    val myBitmap = byteArrayToBitmap(myImageBytes)
+                    compareImageBitmap = myBitmap.asImageBitmap()
+                } catch (e: Exception) {
+                    // Handle error or just log it
+                }
+
+                // Safely update the state (this is thread-safe and will trigger a recomposition)
+                stormsWithImageData.add(
+                    StormImageData(
+                        storm,
+                        imageBitmap,
+                        myImageBitmap,
+                        compareImageBitmap
+                    )
+                )
+                stormsData =
+                    stormsWithImageData.toList() // Convert back to a list to trigger a state update
             }
-            stormsData = stormsWithImageData
         }
     }
 
+
     LazyColumn {
         items(stormsData.size) { index ->
-            val (storm, imageBitmap) = stormsData[index]
+            //val (storm, imageBitmap, myImageBitmap, compareImageBitmap) = StormImageData[index]
+            val (storm, imageBitmap, myImageBitmap, compareImageBitmap) = stormsData[index]
             val id = storm["id"] ?: ""
             val date = storm["date"] ?: ""
 
-            Text("$id - $date")
+            Text("$id - $date - troPYcal", modifier = Modifier.padding(top = 10.dp))
             imageBitmap?.let {
                 Image(
                     bitmap = it,
-                    contentDescription = "Image for $id",
-                    modifier = Modifier.fillMaxSize()
+                    contentDescription = "Image for $id"
+                )
+            }
+            //Spacer(modifier = Modifier.padding(10.dp))
+
+            Text("$id - $date - my plot", modifier = Modifier.padding(top = 10.dp, bottom = 2.dp))
+            myImageBitmap?.let {
+                Image(
+                    bitmap = it,
+                    contentDescription = "My Image for $id",
+
+                    )
+            }
+
+            //Spacer(modifier = Modifier.padding(10.dp))
+
+            Text("$id - $date - compare plot", modifier = Modifier.padding(top = 10.dp))
+            compareImageBitmap?.let {
+                Image(
+                    bitmap = it,
+                    contentDescription = "Comparison Image for $id"
                 )
             }
         }

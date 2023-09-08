@@ -68,6 +68,17 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
+    // For AppWidgets support
+    implementation("androidx.glance:glance-appwidget:1.0.0-rc01")
+
+    // For Glance interop APIs with Material 3
+    implementation("androidx.glance:glance-material3:1.0.0-rc01")
+
+    // Kotlin + coroutines (MAYBE JUST FOR GLANCE DEMO?)
+    implementation("androidx.work:work-runtime-ktx:2.8.1")
+    implementation("io.coil-kt:coil:2.4.0")
+
+
     // define a BOM and its version
     implementation(platform("com.squareup.okhttp3:okhttp-bom:4.10.0"))
 

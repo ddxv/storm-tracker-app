@@ -3,6 +3,7 @@ package com.thirdgate.stormtracker
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
@@ -56,18 +57,26 @@ class MainActivity : ComponentActivity() {
 
 
         setContent {
-            MyApp {
-                MainScreen()
-            }
+            MyApp()
+
         }
     }
 }
 
 @Composable
-fun MyApp(content: @Composable () -> Unit) {
+fun MyApp() {
+    val apiService = remember { ApiService() }
+    var stormsData by remember { mutableStateOf(emptyList<StormImageData>()) }
+
+    LaunchedEffect(apiService) {
+        fetchStorms(apiService) { newData ->
+            stormsData = stormsData + newData
+        }
+    }
+
     MaterialTheme {
         Surface {
-            content()
+            MainScreen(stormsData)
         }
     }
 }
@@ -75,18 +84,15 @@ fun MyApp(content: @Composable () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen() {
+fun MainScreen(stormsData: List<StormImageData>) {
 
     var selectedTab by remember { mutableStateOf(0) }
     var showMenu by remember { mutableStateOf(false) }
 
-    val apiService = ApiService()
-
-
     val articleType = when (selectedTab) {
-        0 -> "A"
-        1 -> "B"
-        2 -> "C"
+        0 -> "Plots"
+        1 -> "NotSet"
+        2 -> "NotSet"
         else -> "A"
     }
 
@@ -122,19 +128,19 @@ fun MainScreen() {
             ) {
                 NavigationBarItem(
                     icon = { Icon(Icons.Default.Home, contentDescription = null) },
-                    label = { Text("A") },
+                    label = { Text("Plots") },
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 }
                 )
                 NavigationBarItem(
                     icon = { Icon(Icons.Default.Star, contentDescription = null) },
-                    label = { Text("B") },
+                    label = { Text("NotSet") },
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 }
                 )
                 NavigationBarItem(
                     icon = { Icon(Icons.Default.List, contentDescription = null) },
-                    label = { Text("C") },
+                    label = { Text("NotSet") },
                     selected = selectedTab == 2,
                     onClick = { selectedTab = 2 }
                 )
@@ -148,7 +154,7 @@ fun MainScreen() {
         ) {
             when (selectedTab) {
                 0 -> {
-                    FetchAndDisplayStorms(apiService)
+                    FetchAndDisplayStorms(stormsData)
                 }
 
                 1 -> {
@@ -163,63 +169,62 @@ fun MainScreen() {
     }
 }
 
-@Composable
-fun FetchAndDisplayStorms(apiService: ApiService) {
-    val context = LocalContext.current
-    var stormsData by remember { mutableStateOf(emptyList<StormImageData>()) }
+suspend fun fetchStorms(apiService: ApiService, onNewDataFetched: (StormImageData) -> Unit) {
+    val fetchedStorms = apiService.getStorms()
+    val storms = fetchedStorms["storms"] ?: emptyList()
 
-    LaunchedEffect(Unit) {
-        val fetchedStorms = apiService.getStorms()
-        val storms = fetchedStorms["storms"] ?: emptyList()
+    // This will hold our data after checking for images
+    val stormsWithImageData = mutableListOf<StormImageData>()
 
-        // This will hold our data after checking for images
-        val stormsWithImageData = mutableListOf<StormImageData>()
+    storms.forEach { storm ->
+        // Launch a new coroutine for each storm
+        val id = storm["id"] ?: ""
+        val date = storm["date"] ?: ""
+        var imageBitmap: ImageBitmap? = null
+        var myImageBitmap: ImageBitmap? = null
+        var compareImageBitmap: ImageBitmap? = null
 
-        storms.forEach { storm ->
-            // Launch a new coroutine for each storm
-            launch {
-                val id = storm["id"] ?: ""
-                val date = storm["date"] ?: ""
-                var imageBitmap: ImageBitmap? = null
-                var myImageBitmap: ImageBitmap? = null
-                var compareImageBitmap: ImageBitmap? = null
-
-                if (apiService.hasStormImage(date, id)) {
-                    val imageBytes = apiService.getStormImage(date, id)
-                    val bitmap = byteArrayToBitmap(imageBytes)
-                    imageBitmap = bitmap.asImageBitmap()
-                }
-
-                try {
-                    val myImageBytes = apiService.getStormMyImage(date, id)
-                    val myBitmap = byteArrayToBitmap(myImageBytes)
-                    myImageBitmap = myBitmap.asImageBitmap()
-                } catch (e: Exception) {
-                    // Handle error or just log it
-                }
-
-                try {
-                    val myImageBytes = apiService.getStormCompareImage(date, id)
-                    val myBitmap = byteArrayToBitmap(myImageBytes)
-                    compareImageBitmap = myBitmap.asImageBitmap()
-                } catch (e: Exception) {
-                    // Handle error or just log it
-                }
-
-                // Safely update the state (this is thread-safe and will trigger a recomposition)
-                stormsWithImageData.add(
-                    StormImageData(
-                        storm,
-                        imageBitmap,
-                        myImageBitmap,
-                        compareImageBitmap
-                    )
-                )
-                stormsData =
-                    stormsWithImageData.toList() // Convert back to a list to trigger a state update
-            }
+        if (apiService.hasStormImage(date, id)) {
+            val imageBytes = apiService.getStormImage(date, id)
+            Log.i("ApiService", "Fetched image from url")
+            val bitmap = byteArrayToBitmap(imageBytes)
+            imageBitmap = bitmap.asImageBitmap()
         }
+
+        try {
+            val myImageBytes = apiService.getStormMyImage(date, id)
+            Log.i("ApiService", "Fetched image from url")
+            val myBitmap = byteArrayToBitmap(myImageBytes)
+            myImageBitmap = myBitmap.asImageBitmap()
+        } catch (e: Exception) {
+            // Handle error or just log it
+        }
+
+        try {
+            val myImageBytes = apiService.getStormCompareImage(date, id)
+            Log.i("ApiService", "Fetched image from url")
+            val myBitmap = byteArrayToBitmap(myImageBytes)
+            compareImageBitmap = myBitmap.asImageBitmap()
+        } catch (e: Exception) {
+            // Handle error or just log it
+        }
+
+        onNewDataFetched(
+            StormImageData(
+                storm,
+                imageBitmap,
+                myImageBitmap,
+                compareImageBitmap
+            )
+        )
     }
+}
+
+@Composable
+fun FetchAndDisplayStorms(stormsData: List<StormImageData>) {
+    val context = LocalContext.current
+
+
 
 
     LazyColumn {

@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    kotlin("plugin.serialization") version "1.9.10"
 }
 
 android {
@@ -77,6 +78,9 @@ dependencies {
     // Kotlin + coroutines (MAYBE JUST FOR GLANCE DEMO?)
     implementation("androidx.work:work-runtime-ktx:2.8.1")
     implementation("io.coil-kt:coil:2.4.0")
+
+    // Serialization for DataStore
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
 
 
     // define a BOM and its version

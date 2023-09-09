@@ -13,6 +13,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.unit.DpSize
 import androidx.core.content.FileProvider.getUriForFile
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
 import androidx.glance.GlanceId
 import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.GlanceAppWidgetManager
@@ -47,15 +48,13 @@ class ImageWorker(
 
         private val uniqueWorkName = ImageWorker::class.java.simpleName
 
-        fun enqueue(context: Context, size: DpSize, glanceId: GlanceId, force: Boolean = false) {
+        fun enqueue(context: Context, glanceId: GlanceId, force: Boolean = false) {
             val manager = WorkManager.getInstance(context)
             val requestBuilder = OneTimeWorkRequestBuilder<ImageWorker>().apply {
                 addTag(glanceId.toString())
                 setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                 setInputData(
                     Data.Builder()
-                        .putFloat("width", size.width.value.toPx)
-                        .putFloat("height", size.height.value.toPx)
                         .putBoolean("force", force)
                         .build(),
                 )
@@ -67,7 +66,7 @@ class ImageWorker(
             }
 
             manager.enqueueUniqueWork(
-                uniqueWorkName + size.width + size.height,
+                uniqueWorkName,
                 workPolicy,
                 requestBuilder.build(),
             )
@@ -92,176 +91,168 @@ class ImageWorker(
     }
 
     override suspend fun doWork(): Result {
-        return try {
-            val width = inputData.getFloat("width", 0f)
-            val height = inputData.getFloat("height", 0f)
-            val force = inputData.getBoolean("force", false)
-            val uri = getRandomImage(width, height, force)
-            updateImageWidget(width, height, uri)
-            Result.success()
-        } catch (e: Exception) {
-            Log.e(uniqueWorkName, "Error while loading image", e)
-            if (runAttemptCount < 10) {
-                // Exponential backoff strategy will avoid the request to repeat
-                // too fast in case of failures.
-                Result.retry()
-            } else {
-                Result.failure()
-            }
-        }
-    }
-
-    private suspend fun updateImageWidget(width: Float, height: Float, uri: String) {
         val manager = GlanceAppWidgetManager(context)
         val glanceIds = manager.getGlanceIds(MyWidget::class.java)
-        val currentIndexKey = stringPreferencesKey("current_image_index")
+
+        //StormsRepository.storeStormImages("A", context)
+        Log.i("WidgetWorker", "getting imageList!")
+
+        val r: Result = Result.failure()
+
+        // Update state with new data
         glanceIds.forEach { glanceId ->
-            updateAppWidgetState(context, glanceId) { prefs ->
-                prefs[MyWidget.getImageKey(width, height)] = uri
-                prefs[MyWidget.sourceKey] = "Picsum Photos"
-                prefs[MyWidget.sourceUrlKey] = "https://picsum.photos/"
+            try {
+                Log.i(
+                    "MyWidget",
+                    "Looptime: Outside StateDefinition: this.glanceId: $glanceId"
+                )
+                updateAppWidgetState(
+                    context = context,
+                    definition = GlanceButtonWidgetStateDefinition(),
+                    glanceId = glanceId,
+                    updateState = { thisWidgdetInfo ->
+                        WidgetInfo(
+                            stormData = StormData.Loading,
+                            currentIndex = thisWidgdetInfo.currentIndex,
+                            numImagesWI = thisWidgdetInfo.numImagesWI,
+                            widgetGlanceId = thisWidgdetInfo.widgetGlanceId,
+                            baseUri = null,
+                        )
+                    }
+                )
+                MyWidget().update(context, glanceId)
+                updateAppWidgetState(
+                    context = context,
+                    glanceId = glanceId,
+                    definition = GlanceButtonWidgetStateDefinition()
+                ) { thisWidgetInfo ->
+                    Log.i(
+                        "MyWidget",
+                        "LoopWidgets: glanceId: $glanceId, Fetch articles "
+                    )
+
+                    val baseUri = StormsRepository.storeStormImages(stormType = "HIIII", context)
+                    val currentIndex = thisWidgetInfo.currentIndex
+                    val imageListSize = thisWidgetInfo.numImagesWI
+                    var nextIndex: Int = currentIndex + 1
+                    nextIndex %= imageListSize
+
+                    WidgetInfo(
+                        stormData = thisWidgetInfo.stormData,
+                        currentIndex = nextIndex,
+                        numImagesWI = thisWidgetInfo.numImagesWI,
+                        widgetGlanceId = thisWidgetInfo.widgetGlanceId,
+                        baseUri = baseUri,
+                    )
+                }
+                MyWidget().update(context, glanceId)
+                val r = Result.success()
+            } catch (e: Exception) {
+                Log.i(
+                    "MyWidget",
+                    "Looptime: Outside StateDefinition: this.glanceId: $glanceId"
+                )
+                updateAppWidgetState(
+                    context = context,
+                    definition = GlanceButtonWidgetStateDefinition(),
+                    glanceId = glanceId,
+                    updateState = { thisWidgetInfo ->
+                        WidgetInfo(
+                            stormData = StormData.Unavailable(e.message.orEmpty()),
+                            currentIndex = thisWidgetInfo.currentIndex,
+                            numImagesWI = thisWidgetInfo.numImagesWI,
+                            widgetGlanceId = thisWidgetInfo.widgetGlanceId,
+                            baseUri = null,
+                        )
+                    }
+                )
+                MyWidget().update(context, glanceId)
+                if (runAttemptCount < 10) {
+                    // Exponential backoff strategy will avoid the request to repeat
+                    // too fast in case of failures.
+                    val r = Result.retry()
+                } else {
+                    val r = Result.failure()
+                }
             }
         }
-        MyWidget().updateAll(context)
+        return r
     }
 
 
-    @Composable
-    fun getNextImageAndUpdateWidget(width: Float, height: Float) {
-        val currentIndexKey = stringPreferencesKey("current_image_index")
-        val currentIndex = (currentState(currentIndexKey) as? Int) ?: 0
-
-        // Now, launch the suspend function using something like the LaunchedEffect
-        LaunchedEffect(currentIndex) {
-            updateToNextImageWidget(width, height, currentIndex)
-        }
-    }
-
-
-//    object NextImageAction : ActionCallback {
-//        override suspend fun onAction(
-//            context: Context,
-//            glanceId: GlanceId,
-//            parameters: ActionParameters,
-//        ) {
-//            val manager = GlanceAppWidgetManager(context)
-//            val size = manager.getAppWidgetSizes(glanceId)
-//                .first() // or some other logic to determine the right size
-//
-//            updateToNextImageWidget(size.width.value.toPx, size.height.value.toPx)
-//
-//            MyWidget().update(context, glanceId)
+//    override suspend fun doWork(): Result {
+//        return try {
+//            getNextImageAndUpdateWidget()
+//            Result.success()
+//        } catch (e: Exception) {
+//            Log.e(uniqueWorkName, "Error while loading image", e)
+//            if (runAttemptCount < 10) {
+//                // Exponential backoff strategy will avoid the request to repeat
+//                // too fast in case of failures.
+//                Result.retry()
+//            } else {
+//                Result.failure()
+//            }
 //        }
 //    }
 
-    suspend fun updateToNextImageWidget(
-        width: Float,
-        height: Float,
-        currentIndex: Int
-    ) {
 
-        val apiService = ApiService()
-        val imageList = apiService.getStormCompareImageList()
-        val imageListSize = imageList.size
-
-        if (imageList.isEmpty()) {
-            throw IOException("No storm compare images available")
-        }
-
-
-        // Fetch the current index from the state
-        val currentIndexKey = stringPreferencesKey("current_image_index")
-
-        // Fetch the image based on the current index
-        val selectedImage = imageList[currentIndex % imageList.size]
-
-        // Convert the ByteArray to a file
-        val imageFile = File(context.cacheDir, "nextStormImage.jpg").apply {
-            writeBytes(selectedImage)
-        }
-
-        // Use the FileProvider to create a content URI
-        val uri = getUriForFile(
-            context,
-            "${applicationContext.packageName}.provider",
-            imageFile,
-        ).toString()
-
-        val manager = GlanceAppWidgetManager(context)
-        val glanceIds = manager.getGlanceIds(MyWidget::class.java)
-        glanceIds.forEach { glanceId ->
-            updateAppWidgetState(context, glanceId) { prefs ->
-                prefs[MyWidget.getImageKey(width, height)] = uri
-                prefs[MyWidget.sourceKey] = "Picsum Photos"
-                prefs[MyWidget.sourceUrlKey] = "https://picsum.photos/"
-
-
-                //val currentIndex = (currentState(currentIndexKey) as? Int) ?: 0
-
-
-                // Increment the current image index for the next cycle
-                var currentIndex = prefs[currentIndexKey] as Int
-
-                currentIndex += 1
-                currentIndex = currentIndex % imageListSize
-
-                prefs[currentIndexKey] = currentIndex.toString()
-            }
-        }
-        MyWidget().updateAll(context)
-    }
-
-
-    private suspend fun getRandomImage(width: Float, height: Float, force: Boolean): String {
-        val apiService = ApiService()
-        val imageList = apiService.getStormCompareImageList()
-
-        if (imageList.isEmpty()) {
-            throw IOException("No storm compare images available")
-        }
-
-        // Select a random image from the list
-        val randomImage = imageList.random()
-
-        // Since the image is already in ByteArray form, you don't need to make another Coil request.
-        // Convert the ByteArray to a file
-        val imageFileName = "stormImage_$currentIndex.jpg"
-        val imageFile = File(context.cacheDir, imageFileName).apply {
-            writeBytes(selectedImage)
-        }
-
-        // Use the FileProvider to create a content URI
-        val contentUri = getUriForFile(
-            context,
-            "${applicationContext.packageName}.provider",
-            imageFile,
-        )
-
-        // Find the current launcher every time to ensure it has read permissions
-        val intent = Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_HOME) }
-        val resolveInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.packageManager.resolveActivity(
-                intent,
-                PackageManager.ResolveInfoFlags.of(PackageManager.MATCH_DEFAULT_ONLY.toLong()),
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            context.packageManager.resolveActivity(
-                intent,
-                PackageManager.MATCH_DEFAULT_ONLY,
-            )
-        }
-        val launcherName = resolveInfo?.activityInfo?.packageName
-        if (launcherName != null) {
-            context.grantUriPermission(
-                launcherName,
-                contentUri,
-                FLAG_GRANT_READ_URI_PERMISSION or FLAG_GRANT_PERSISTABLE_URI_PERMISSION,
-            )
-        }
-
-        // return the path
-        return contentUri.toString()
-    }
+//    suspend fun getNextImageAndUpdateWidget() {
+//        val apiService = ApiService()
+//        Log.i("WidgetWorker", "getting imageList!")
+//        val imageList = apiService.getStormCompareImageList()
+//
+//        Log.i("WidgetWorker", "got imageList!")
+//
+//        // Now, launch the suspend function using something like the LaunchedEffect
+//        updateToNextImageWidget(imageList)
+//
+//    }
+//
+//
+//    suspend fun updateToNextImageWidget(
+//        imageList: List<ByteArray>
+//    ) {
+//        val imageListSize = imageList.size
+//
+//        if (imageList.isEmpty()) {
+//            throw IOException("No storm compare images available")
+//        }
+//
+//        val manager = GlanceAppWidgetManager(context)
+//        val glanceIds = manager.getGlanceIds(MyWidget::class.java)
+//        glanceIds.forEach { glanceId ->
+//            updateAppWidgetState(context, glanceId) { prefs ->
+//
+//                // Fetch the current index from the state
+//                val currentIndex: Int = prefs[MyWidget.widgetCurrentIndex]?.toInt() ?: 0
+//                var nextIndex: Int = currentIndex + 1
+//                nextIndex %= imageListSize
+//
+//                Log.i("MyWidget", "Index: $nextIndex")
+//                // Fetch the image based on the current index
+//                val selectedImage = imageList[nextIndex]
+//
+//                // Convert the ByteArray to a file
+//                val imageFile =
+//                    File(context.cacheDir, "nextStormImage_${nextIndex}.jpg").apply {
+//                        writeBytes(selectedImage)
+//                    }
+//
+//                // Use the FileProvider to create a content URI
+//                val uri = getUriForFile(
+//                    context,
+//                    "${applicationContext.packageName}.provider",
+//                    imageFile,
+//                ).toString()
+//
+//                prefs[MyWidget.sourceUrlKey] = uri
+//                prefs[MyWidget.widgetCurrentIndex] = nextIndex.toString()
+//
+//                Log.i("MyWidget", "Index: $nextIndex Saved uri=$uri")
+//            }
+//        }
+//        MyWidget().updateAll(context)
+//    }
 
 }

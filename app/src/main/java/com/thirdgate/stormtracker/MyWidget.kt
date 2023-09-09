@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.unit.DpSize
@@ -49,23 +50,16 @@ import androidx.glance.text.TextAlign
 import androidx.glance.text.TextDecoration
 import androidx.glance.text.TextStyle
 
-/**
- * Sample showcasing how to load images using WorkManager and Coil.
- */
 class MyWidget : GlanceAppWidget() {
 
-    companion object {
-        val sourceKey = stringPreferencesKey("image_source")
-        val sourceUrlKey = stringPreferencesKey("image_source_url")
+//    companion object {
+//        val sourceUrlKey = stringPreferencesKey("image_source_url")
+//        val widgetCurrentIndex = stringPreferencesKey("current_index")
+//    }
 
-        fun getImageKey(size: DpSize) = getImageKey(size.width.value.toPx, size.height.value.toPx)
+    override val stateDefinition = GlanceButtonWidgetStateDefinition()
 
-        fun getImageKey(width: Float, height: Float) = stringPreferencesKey(
-            "uri-$width-$height",
-        )
-    }
-
-    override val sizeMode: SizeMode = SizeMode.Exact
+    //override val sizeMode: SizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
@@ -75,9 +69,15 @@ class MyWidget : GlanceAppWidget() {
 
     @Composable
     fun Content() {
+        val widgetInfo = currentState<WidgetInfo>()
+        val currentIndex = widgetInfo.currentIndex
+        val baseUri = widgetInfo.baseUri
         val context = LocalContext.current
-        val size = LocalSize.current
-        val imagePath = currentState(getImageKey(size))
+        //val size = LocalSize.current
+        // Note sure if this is the right way to get the image?
+
+        val imagePath = baseUri + "/compareModels_$currentIndex.jpg"
+        Log.i("MyWidget", "Ready uri=$imagePath!")
         GlanceTheme {
             Box(
                 modifier = GlanceModifier
@@ -91,7 +91,8 @@ class MyWidget : GlanceAppWidget() {
                     Alignment.BottomEnd
                 },
             ) {
-                if (imagePath != null) {
+                if (imagePath != null && baseUri != null) {
+                    Log.i("MyWidget", "Ready to load uri=$imagePath!")
                     Image(
                         provider = getImageProvider(imagePath),
                         contentDescription = null,
@@ -109,13 +110,14 @@ class MyWidget : GlanceAppWidget() {
                     )
 
                 } else {
+                    Log.e("MyWidget", "Failing to load uri=$imagePath!")
                     CircularProgressIndicator()
 
                     // Enqueue the worker after the composition is completed using the glanceId as
                     // tag so we can cancel all jobs in case the widget instance is deleted
                     val glanceId = LocalGlanceId.current
                     SideEffect {
-                        ImageWorker.enqueue(context, size, glanceId)
+                        ImageWorker.enqueue(context, glanceId)
                     }
                 }
             }
@@ -165,7 +167,7 @@ class RefreshAction : ActionCallback {
         // Enqueue a job for each size the widget can be shown in the current state
         // (i.e landscape/portrait)
         GlanceAppWidgetManager(context).getAppWidgetSizes(glanceId).forEach { size ->
-            ImageWorker.enqueue(context, size, glanceId, force = true)
+            ImageWorker.enqueue(context, glanceId, force = true)
         }
     }
 }

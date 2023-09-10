@@ -52,14 +52,7 @@ import androidx.glance.text.TextStyle
 
 class MyWidget : GlanceAppWidget() {
 
-//    companion object {
-//        val sourceUrlKey = stringPreferencesKey("image_source_url")
-//        val widgetCurrentIndex = stringPreferencesKey("current_index")
-//    }
-
     override val stateDefinition = GlanceButtonWidgetStateDefinition()
-
-    //override val sizeMode: SizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
@@ -72,12 +65,11 @@ class MyWidget : GlanceAppWidget() {
         val widgetInfo = currentState<WidgetInfo>()
         val currentIndex = widgetInfo.currentIndex
         val baseUri = widgetInfo.baseUri
+        val rawPath = widgetInfo.rawPath
         val context = LocalContext.current
-        //val size = LocalSize.current
-        // Note sure if this is the right way to get the image?
 
         val imagePath = baseUri + "/compareModels_$currentIndex.jpg"
-        Log.i("MyWidget", "check uri=$imagePath!")
+        Log.i("MyWidget", "check uri=$imagePath & rawPath=$rawPath")
         GlanceTheme {
             Box(
                 modifier = GlanceModifier
@@ -91,10 +83,10 @@ class MyWidget : GlanceAppWidget() {
                     Alignment.BottomEnd
                 },
             ) {
-                if (imagePath != null && baseUri != null) {
-                    Log.i("MyWidget", "Ready to load uri=$imagePath")
+                if (imagePath != null && baseUri != null && rawPath != null) {
+                    Log.i("MyWidget", "Ready to load baseUri=$baseUri with uri=$imagePath")
                     Image(
-                        provider = getImageProvider(imagePath),
+                        provider = getImageProvider(rawPath),
                         contentDescription = null,
                         contentScale = ContentScale.FillBounds,
                         modifier = GlanceModifier

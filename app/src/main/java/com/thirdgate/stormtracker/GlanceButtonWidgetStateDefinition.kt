@@ -47,6 +47,7 @@ object MySerializer : Serializer<WidgetInfo> {
             stormData = StormData.Loading,
             widgetGlanceId = "default",
             baseUri = null,
+            rawPath = null,
             numImagesWI = 1,
             currentIndex = 0,
         )

@@ -95,7 +95,7 @@ class ImageWorker(
         val glanceIds = manager.getGlanceIds(MyWidget::class.java)
 
         //StormsRepository.storeStormImages("A", context)
-        Log.i("WidgetWorker", "getting imageList!")
+        Log.i("ImageWorker", "getting imageList!")
 
         val r: Result = Result.failure()
 
@@ -103,7 +103,7 @@ class ImageWorker(
         glanceIds.forEach { glanceId ->
             try {
                 Log.i(
-                    "MyWidget",
+                    "ImageWorker",
                     "Looptime: Outside StateDefinition: this.glanceId: $glanceId"
                 )
                 updateAppWidgetState(
@@ -117,6 +117,7 @@ class ImageWorker(
                             numImagesWI = thisWidgdetInfo.numImagesWI,
                             widgetGlanceId = thisWidgdetInfo.widgetGlanceId,
                             baseUri = null,
+                            rawPath = null,
                         )
                     }
                 )
@@ -127,11 +128,11 @@ class ImageWorker(
                     definition = GlanceButtonWidgetStateDefinition()
                 ) { thisWidgetInfo ->
                     Log.i(
-                        "MyWidget",
+                        "ImageWorker",
                         "LoopWidgets: glanceId: $glanceId, Fetch articles "
                     )
 
-                    val baseUri = StormsRepository.storeStormImages(stormType = "HIIII", context)
+                    val baseUri = storeStormImages(stormType = "HIIII", context)
                     val currentIndex = thisWidgetInfo.currentIndex
                     val imageListSize = thisWidgetInfo.numImagesWI
                     var nextIndex: Int = currentIndex + 1
@@ -143,13 +144,14 @@ class ImageWorker(
                         numImagesWI = thisWidgetInfo.numImagesWI,
                         widgetGlanceId = thisWidgetInfo.widgetGlanceId,
                         baseUri = baseUri,
+                        rawPath = "${context.cacheDir.toString()}/compareModels_0.jpg",
                     )
                 }
                 MyWidget().update(context, glanceId)
                 val r = Result.success()
             } catch (e: Exception) {
                 Log.i(
-                    "MyWidget",
+                    "ImageWorker",
                     "Looptime: Outside StateDefinition: this.glanceId: $glanceId"
                 )
                 updateAppWidgetState(
@@ -163,6 +165,7 @@ class ImageWorker(
                             numImagesWI = thisWidgetInfo.numImagesWI,
                             widgetGlanceId = thisWidgetInfo.widgetGlanceId,
                             baseUri = null,
+                            rawPath = null,
                         )
                     }
                 )
@@ -180,79 +183,80 @@ class ImageWorker(
     }
 
 
-//    override suspend fun doWork(): Result {
-//        return try {
-//            getNextImageAndUpdateWidget()
-//            Result.success()
-//        } catch (e: Exception) {
-//            Log.e(uniqueWorkName, "Error while loading image", e)
-//            if (runAttemptCount < 10) {
-//                // Exponential backoff strategy will avoid the request to repeat
-//                // too fast in case of failures.
-//                Result.retry()
-//            } else {
-//                Result.failure()
-//            }
-//        }
-//    }
+    suspend fun storeStormImages(stormType: String, context: Context): String {
+        Log.i("ImageWorker", "Fetching stormType=$stormType")
+        val apiService = ApiService()
+        try {
+            val compareStormBytes: List<ByteArray> =
+                apiService.getStormCompareImageList()
+            Log.i(
+                "ImageWorker",
+                "ApiService returned: compareStormBytes {${compareStormBytes}}"
+            )
 
+            val myNumImages = compareStormBytes.size
 
-//    suspend fun getNextImageAndUpdateWidget() {
-//        val apiService = ApiService()
-//        Log.i("WidgetWorker", "getting imageList!")
-//        val imageList = apiService.getStormCompareImageList()
-//
-//        Log.i("WidgetWorker", "got imageList!")
-//
-//        // Now, launch the suspend function using something like the LaunchedEffect
-//        updateToNextImageWidget(imageList)
-//
-//    }
-//
-//
-//    suspend fun updateToNextImageWidget(
-//        imageList: List<ByteArray>
-//    ) {
-//        val imageListSize = imageList.size
-//
-//        if (imageList.isEmpty()) {
-//            throw IOException("No storm compare images available")
-//        }
-//
-//        val manager = GlanceAppWidgetManager(context)
-//        val glanceIds = manager.getGlanceIds(MyWidget::class.java)
-//        glanceIds.forEach { glanceId ->
-//            updateAppWidgetState(context, glanceId) { prefs ->
-//
-//                // Fetch the current index from the state
-//                val currentIndex: Int = prefs[MyWidget.widgetCurrentIndex]?.toInt() ?: 0
-//                var nextIndex: Int = currentIndex + 1
-//                nextIndex %= imageListSize
-//
-//                Log.i("MyWidget", "Index: $nextIndex")
-//                // Fetch the image based on the current index
-//                val selectedImage = imageList[nextIndex]
-//
-//                // Convert the ByteArray to a file
-//                val imageFile =
-//                    File(context.cacheDir, "nextStormImage_${nextIndex}.jpg").apply {
-//                        writeBytes(selectedImage)
-//                    }
-//
-//                // Use the FileProvider to create a content URI
-//                val uri = getUriForFile(
-//                    context,
-//                    "${applicationContext.packageName}.provider",
-//                    imageFile,
-//                ).toString()
-//
-//                prefs[MyWidget.sourceUrlKey] = uri
-//                prefs[MyWidget.widgetCurrentIndex] = nextIndex.toString()
-//
-//                Log.i("MyWidget", "Index: $nextIndex Saved uri=$uri")
-//            }
-//        }
-//        MyWidget().updateAll(context)
-//    }
+            val baseUri = "content://com.thirdgate.stormtracker.provider/cache_files"
+
+            var index = 0
+            for (myImg in compareStormBytes) {
+
+                val fileName = "compareModels_$index.jpg"
+
+                val imageFile = File(context.cacheDir, fileName).apply {
+                    writeBytes(myImg)
+                }
+                val contentUri = getUriForFile(
+                    context,
+                    "${applicationContext.packageName}.provider",
+                    imageFile,
+                )
+
+                // Find the current launcher every time to ensure it has read permissions
+                val intent = Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_HOME) }
+                val resolveInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    context.packageManager.resolveActivity(
+                        intent,
+                        PackageManager.ResolveInfoFlags.of(PackageManager.MATCH_DEFAULT_ONLY.toLong()),
+                    )
+                } else {
+                    @Suppress("DEPRECATION")
+                    context.packageManager.resolveActivity(
+                        intent,
+                        PackageManager.MATCH_DEFAULT_ONLY,
+                    )
+                }
+                val launcherName = resolveInfo?.activityInfo?.packageName
+                if (launcherName != null) {
+                    context.grantUriPermission(
+                        launcherName,
+                        contentUri,
+                        FLAG_GRANT_READ_URI_PERMISSION or FLAG_GRANT_PERSISTABLE_URI_PERMISSION,
+                    )
+                }
+
+                Log.i(
+                    "ImageWorker",
+                    "Finished image $index uri=${contentUri.toString()} and baseUri=$baseUri and the fileName=$fileName"
+                )
+
+                index++
+            }
+
+            val myStormInfo = StormData.StormInfo(
+                images = compareStormBytes,
+                numImages = myNumImages,
+                baseUri = baseUri
+            )
+
+            val myMap = mapOf("CompareImages" to myStormInfo)
+            //val myStormData = StormData.Available(myMap)
+
+            return baseUri
+        } catch (e: Exception) {
+            Log.e("ImageWorker", "Oops")
+            return "null"
+        }
+    }
 
 }

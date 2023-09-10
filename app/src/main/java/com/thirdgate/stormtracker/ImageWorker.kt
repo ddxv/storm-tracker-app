@@ -211,7 +211,6 @@ class ImageWorker(
                     "${applicationContext.packageName}.provider",
                     imageFile,
                 )
-
                 // Find the current launcher every time to ensure it has read permissions
                 val intent = Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_HOME) }
                 val resolveInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

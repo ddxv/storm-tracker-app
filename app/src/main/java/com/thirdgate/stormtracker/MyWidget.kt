@@ -86,7 +86,7 @@ class MyWidget : GlanceAppWidget() {
                 if (imagePath != null && baseUri != null && rawPath != null) {
                     Log.i("MyWidget", "Ready to load baseUri=$baseUri with uri=$imagePath")
                     Image(
-                        provider = getImageProvider(rawPath),
+                        provider = getImageProvider(imagePath),
                         contentDescription = null,
                         contentScale = ContentScale.FillBounds,
                         modifier = GlanceModifier

@@ -2,6 +2,10 @@ package com.thirdgate.stormtracker
 
 import android.content.Context
 import android.content.Intent
+import android.content.Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+import android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+import android.content.pm.PackageManager
+import android.os.Build
 import android.util.Log
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
@@ -57,26 +61,52 @@ object StormsRepository {
                 val fileName = "compareModels_$index.jpg"
                 //val file = File(context.filesDir, fileName)
                 //val myFile = file.writeBytes(myImg)
-
+//                Log.i(
+//                    "StormsRepository",
+//                    "Stored Image to cacheDir:${context.cacheDir} fileName=$fileName"
+//                )
                 val imageFile = File(context.cacheDir, fileName).apply {
                     writeBytes(myImg)
                 }
-                Log.i("StormsRepository", "What is the uri=111 and the fileName=$fileName")
 
                 val uri = getUriForFile(
                     context,
                     "com.thirdgate.stormtracker.provider",
                     imageFile,
                 )
-                context.grantUriPermission(
-                    "com.thirdgate.stormtracker",
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
+//                context.grantUriPermission(
+//                    "com.thirdgate.stormtracker",
+//                    uri,
+//                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+//                )
+
+
+                // Find the current launcher everytime to ensure it has read permissions
+                val intent = Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_HOME) }
+                val resolveInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    context.packageManager.resolveActivity(
+                        intent,
+                        PackageManager.ResolveInfoFlags.of(PackageManager.MATCH_DEFAULT_ONLY.toLong()),
+                    )
+                } else {
+                    @Suppress("DEPRECATION")
+                    context.packageManager.resolveActivity(
+                        intent,
+                        PackageManager.MATCH_DEFAULT_ONLY,
+                    )
+                }
+                val launcherName = resolveInfo?.activityInfo?.packageName
+                if (launcherName != null) {
+                    context.grantUriPermission(
+                        launcherName,
+                        uri,
+                        FLAG_GRANT_READ_URI_PERMISSION or FLAG_GRANT_PERSISTABLE_URI_PERMISSION,
+                    )
+                }
 
                 Log.i(
                     "StormsRepository",
-                    "What is the uri=${uri.toString()} and the fileName=$fileName"
+                    "Finished image $index uri=${uri.toString()} and baseUri=$baseUri and the fileName=$fileName"
                 )
 
                 index++

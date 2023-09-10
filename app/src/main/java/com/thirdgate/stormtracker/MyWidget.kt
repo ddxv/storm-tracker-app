@@ -77,7 +77,7 @@ class MyWidget : GlanceAppWidget() {
         // Note sure if this is the right way to get the image?
 
         val imagePath = baseUri + "/compareModels_$currentIndex.jpg"
-        Log.i("MyWidget", "Ready uri=$imagePath!")
+        Log.i("MyWidget", "check uri=$imagePath!")
         GlanceTheme {
             Box(
                 modifier = GlanceModifier
@@ -92,7 +92,7 @@ class MyWidget : GlanceAppWidget() {
                 },
             ) {
                 if (imagePath != null && baseUri != null) {
-                    Log.i("MyWidget", "Ready to load uri=$imagePath!")
+                    Log.i("MyWidget", "Ready to load uri=$imagePath")
                     Image(
                         provider = getImageProvider(imagePath),
                         contentDescription = null,
@@ -110,7 +110,7 @@ class MyWidget : GlanceAppWidget() {
                     )
 
                 } else {
-                    Log.e("MyWidget", "Failing to load uri=$imagePath!")
+                    Log.e("MyWidget", "Failing to load baseUri=$baseUri and imagePath=$imagePath")
                     CircularProgressIndicator()
 
                     // Enqueue the worker after the composition is completed using the glanceId as
@@ -145,8 +145,10 @@ class MyWidget : GlanceAppWidget() {
      */
     private fun getImageProvider(path: String): ImageProvider {
         if (path.startsWith("content://")) {
+            Log.i("MyWidget", "getImageProvider for path=$path to pathtoUri=${path.toUri()}")
             return ImageProvider(path.toUri())
         }
+        Log.i("MyWidget", "getImageProvider will return bitmap for $path")
         val bitmap = BitmapFactory.decodeFile(path)
         return ImageProvider(bitmap)
     }

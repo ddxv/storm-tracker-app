@@ -65,10 +65,10 @@ class MyWidget : GlanceAppWidget() {
         val widgetInfo = currentState<WidgetInfo>()
         val currentIndex = widgetInfo.currentIndex
         val baseUri = widgetInfo.baseUri
-        val rawPath = widgetInfo.rawPath
+        val rawPath = widgetInfo.rawPath // Only for checking locations
         val context = LocalContext.current
 
-        val imagePath = baseUri + "/compareModels_$currentIndex.jpg"
+        val imagePath = "$baseUri/compareModels_$currentIndex.jpg"
         Log.i("MyWidget", "check uri=$imagePath & rawPath=$rawPath")
         GlanceTheme {
             Box(
@@ -83,7 +83,7 @@ class MyWidget : GlanceAppWidget() {
                     Alignment.BottomEnd
                 },
             ) {
-                if (imagePath != null && baseUri != null && rawPath != null) {
+                if (imagePath != null && baseUri != null) {
                     Log.i("MyWidget", "Ready to load baseUri=$baseUri with uri=$imagePath")
                     Image(
                         provider = getImageProvider(imagePath),
@@ -152,17 +152,17 @@ class RefreshAction : ActionCallback {
         glanceId: GlanceId,
         parameters: ActionParameters,
     ) {
-        // Clear the state to show loading screen
-        updateAppWidgetState(context, glanceId) { prefs ->
-            prefs.clear()
-        }
+
+
         MyWidget().update(context, glanceId)
 
         // Enqueue a job for each size the widget can be shown in the current state
         // (i.e landscape/portrait)
+
         GlanceAppWidgetManager(context).getAppWidgetSizes(glanceId).forEach { size ->
             ImageWorker.enqueue(context, glanceId, force = true)
         }
+
     }
 }
 

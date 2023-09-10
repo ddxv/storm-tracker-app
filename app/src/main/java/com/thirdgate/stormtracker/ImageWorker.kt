@@ -8,19 +8,10 @@ import android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.unit.DpSize
 import androidx.core.content.FileProvider.getUriForFile
-import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
 import androidx.glance.GlanceId
-import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.GlanceAppWidgetManager
-import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.state.updateAppWidgetState
-import androidx.glance.appwidget.updateAll
-import androidx.glance.currentState
 import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
@@ -28,15 +19,8 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import coil.annotation.ExperimentalCoilApi
-import coil.imageLoader
-import coil.memory.MemoryCache
-import coil.request.ErrorResult
-import coil.request.ImageRequest
-import okio.IOException
 import java.io.File
 import java.util.concurrent.TimeUnit
-import kotlin.math.roundToInt
 
 
 class ImageWorker(
@@ -94,9 +78,7 @@ class ImageWorker(
         val manager = GlanceAppWidgetManager(context)
         val glanceIds = manager.getGlanceIds(MyWidget::class.java)
 
-        //StormsRepository.storeStormImages("A", context)
         Log.i("ImageWorker", "getting imageList!")
-
         val r: Result = Result.failure()
 
         // Update state with new data
@@ -144,7 +126,7 @@ class ImageWorker(
                         numImagesWI = thisWidgetInfo.numImagesWI,
                         widgetGlanceId = thisWidgetInfo.widgetGlanceId,
                         baseUri = baseUri,
-                        rawPath = "${context.cacheDir.toString()}/compareModels_0.jpg",
+                        rawPath = "${context.cacheDir}/compareModels_$nextIndex.jpg",
                     )
                 }
                 MyWidget().update(context, glanceId)

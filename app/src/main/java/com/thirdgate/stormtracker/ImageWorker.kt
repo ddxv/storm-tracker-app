@@ -82,6 +82,7 @@ class ImageWorker(
         val r: Result = Result.failure()
 
         // Update state with new data
+        val (baseUri, numImagesWI) = storeStormImages(stormType = "HIIII", context)
         glanceIds.forEach { glanceId ->
             try {
                 Log.i(
@@ -114,20 +115,18 @@ class ImageWorker(
                         "LoopWidgets: glanceId: $glanceId, Fetch articles "
                     )
 
-                    val baseUri = storeStormImages(stormType = "HIIII", context)
-                    val currentIndex = thisWidgetInfo.currentIndex
-                    val imageListSize = thisWidgetInfo.numImagesWI
-                    var nextIndex: Int = currentIndex + 1
-                    nextIndex %= imageListSize
-
                     WidgetInfo(
                         stormData = thisWidgetInfo.stormData,
-                        currentIndex = nextIndex,
-                        numImagesWI = thisWidgetInfo.numImagesWI,
+                        currentIndex = thisWidgetInfo.currentIndex,
+                        numImagesWI = numImagesWI,
                         widgetGlanceId = thisWidgetInfo.widgetGlanceId,
                         baseUri = baseUri,
-                        rawPath = "${context.cacheDir}/compareModels_$nextIndex.jpg",
+                        rawPath = "${context.cacheDir}/compareModels_${thisWidgetInfo.currentIndex}.jpg",
                     )
+
+                    // Can this much easier replace above???
+                    //thisWidgetInfo.copy(baseUri = baseUri)
+
                 }
                 MyWidget().update(context, glanceId)
                 val r = Result.success()
@@ -165,7 +164,7 @@ class ImageWorker(
     }
 
 
-    suspend fun storeStormImages(stormType: String, context: Context): String {
+    suspend fun storeStormImages(stormType: String, context: Context): Pair<String, Int> {
         Log.i("ImageWorker", "Fetching stormType=$stormType")
         val apiService = ApiService()
         try {
@@ -226,17 +225,16 @@ class ImageWorker(
 
             val myStormInfo = StormData.StormInfo(
                 images = compareStormBytes,
-                numImages = myNumImages,
                 baseUri = baseUri
             )
 
             val myMap = mapOf("CompareImages" to myStormInfo)
             //val myStormData = StormData.Available(myMap)
 
-            return baseUri
+            return Pair(baseUri, myNumImages)
         } catch (e: Exception) {
             Log.e("ImageWorker", "Oops")
-            return "null"
+            return Pair("null", 0)
         }
     }
 

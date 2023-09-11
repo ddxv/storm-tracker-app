@@ -11,4 +11,3 @@ data class WidgetInfo(
     val numImagesWI: Int,
     val widgetGlanceId: String
 )
-

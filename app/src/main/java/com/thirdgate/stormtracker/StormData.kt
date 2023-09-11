@@ -16,11 +16,12 @@ sealed interface StormData {
 
     @Serializable
     data class StormInfo(
-        val numImages: Int,
         val baseUri: String,
         val images: List<ByteArray>,
-    )
-
+    ) {
+        val numImages: Int
+            get() = images.size
+    }
 
 }
 

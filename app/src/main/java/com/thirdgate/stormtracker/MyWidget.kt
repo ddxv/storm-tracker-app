@@ -35,7 +35,9 @@ import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.appWidgetBackground
 import androidx.glance.appwidget.provideContent
+import androidx.glance.appwidget.state.getAppWidgetState
 import androidx.glance.appwidget.state.updateAppWidgetState
+import androidx.glance.appwidget.updateAll
 import androidx.glance.background
 import androidx.glance.currentState
 import androidx.glance.layout.Alignment
@@ -53,8 +55,8 @@ import androidx.glance.text.TextStyle
 class MyWidget : GlanceAppWidget() {
 
     override val stateDefinition = GlanceButtonWidgetStateDefinition()
-
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        Log.i("MyWidget", "provideGlance started")
         provideContent {
             Content()
         }
@@ -62,6 +64,10 @@ class MyWidget : GlanceAppWidget() {
 
     @Composable
     fun Content() {
+        Log.i(
+            "MyWidget",
+            "Content: start"
+        )
         val widgetInfo = currentState<WidgetInfo>()
         val currentIndex = widgetInfo.currentIndex
         val baseUri = widgetInfo.baseUri
@@ -69,7 +75,10 @@ class MyWidget : GlanceAppWidget() {
         val context = LocalContext.current
 
         val imagePath = "$baseUri/compareModels_$currentIndex.jpg"
-        Log.i("MyWidget", "check uri=$imagePath & rawPath=$rawPath")
+        Log.i(
+            "MyWidget",
+            "Content: currentIndex=$currentIndex: check uri=$imagePath & rawPath=$rawPath"
+        )
         GlanceTheme {
             Box(
                 modifier = GlanceModifier
@@ -84,14 +93,13 @@ class MyWidget : GlanceAppWidget() {
                 },
             ) {
                 if (imagePath != null && baseUri != null) {
-                    Log.i("MyWidget", "Ready to load baseUri=$baseUri with uri=$imagePath")
+                    Log.i("MyWidget", "Ready to load uri=$imagePath")
                     Image(
                         provider = getImageProvider(imagePath),
                         contentDescription = null,
                         contentScale = ContentScale.FillBounds,
                         modifier = GlanceModifier
                             .fillMaxSize()
-                            .clickable(actionRunCallback<RefreshAction>()),
                     )
                     Button(
                         text = "NEXT", onClick = actionRunCallback<NextImageAction>(),
@@ -146,25 +154,24 @@ class MyWidget : GlanceAppWidget() {
     }
 }
 
-class RefreshAction : ActionCallback {
-    override suspend fun onAction(
-        context: Context,
-        glanceId: GlanceId,
-        parameters: ActionParameters,
-    ) {
-
-
-        MyWidget().update(context, glanceId)
-
-        // Enqueue a job for each size the widget can be shown in the current state
-        // (i.e landscape/portrait)
-
-        GlanceAppWidgetManager(context).getAppWidgetSizes(glanceId).forEach { size ->
-            ImageWorker.enqueue(context, glanceId, force = true)
-        }
-
-    }
-}
+//class RefreshAction : ActionCallback {
+//    override suspend fun onAction(
+//        context: Context,
+//        glanceId: GlanceId,
+//        parameters: ActionParameters,
+//    ) {
+//
+//        MyWidget().update(context, glanceId)
+//
+//        // Enqueue a job for each size the widget can be shown in the current state
+//        // (i.e landscape/portrait)
+//
+//        GlanceAppWidgetManager(context).getAppWidgetSizes(glanceId).forEach { size ->
+//            ImageWorker.enqueue(context, glanceId, force = true)
+//        }
+//
+//    }
+//}
 
 class NextImageAction : ActionCallback {
     override suspend fun onAction(
@@ -172,11 +179,42 @@ class NextImageAction : ActionCallback {
         glanceId: GlanceId,
         parameters: ActionParameters,
     ) {
-        // TODO: Implement logic to fetch the next image and update the widget with it.
-        // For now, just to demonstrate, let's refresh the widget
-        RefreshAction().onAction(context, glanceId, parameters)
+        Log.i("MyWidget", "NextImageAction: glanceId=$glanceId Start onAction")
+        // Increment the currentIndex and update the widget state
+        updateAppWidgetState(
+            context = context,
+            definition = GlanceButtonWidgetStateDefinition(),
+            glanceId = glanceId,
+        ) { thisWidgetInfo ->
+
+
+            val nextIndex = (thisWidgetInfo.currentIndex + 1) % thisWidgetInfo.numImagesWI
+            Log.i(
+                "MyWidget",
+                "NextImageAction: glanceId=$glanceId set currentIndex=${thisWidgetInfo.currentIndex} nextIndex=$nextIndex"
+            )
+            WidgetInfo(
+                stormData = thisWidgetInfo.stormData,
+                currentIndex = nextIndex,
+                widgetGlanceId = thisWidgetInfo.widgetGlanceId,
+                baseUri = thisWidgetInfo.baseUri,
+                numImagesWI = thisWidgetInfo.numImagesWI,
+                rawPath = "${context.cacheDir}/compareModels_${nextIndex}.jpg",
+            )
+
+            //thisWidgetInfo.copy(currentIndex = nextIndex)
+        }
+        Log.i("MyWidget", "NextImageAction: glanceId=$glanceId Update Widget State before")
+        // Call update to refresh the widget
+        //MyWidget().update(context, glanceId)
+        MyWidget().updateAll(context)
+        Log.i("MyWidget", "NextImageAction: glanceId=$glanceId Update Widget State after")
+
+
     }
+
 }
+
 
 class ImageGlanceWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = MyWidget()

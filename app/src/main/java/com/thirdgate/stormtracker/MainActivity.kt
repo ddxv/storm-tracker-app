@@ -187,14 +187,14 @@ suspend fun fetchStorms(apiService: ApiService, onNewDataFetched: (StormImageDat
 
         if (apiService.hasStormImage(date, id)) {
             val imageBytes = apiService.getStormImage(date, id)
-            Log.i("ApiService", "Fetched image from url")
+            Log.i("ApiService", "fetchStorms fetched tropycal image from url")
             val bitmap = byteArrayToBitmap(imageBytes)
             imageBitmap = bitmap.asImageBitmap()
         }
 
         try {
             val myImageBytes = apiService.getStormMyImage(date, id)
-            Log.i("ApiService", "Fetched image from url")
+            Log.i("ApiService", "fetchStorms fetched myImage from url")
             val myBitmap = byteArrayToBitmap(myImageBytes)
             myImageBitmap = myBitmap.asImageBitmap()
         } catch (e: Exception) {
@@ -203,7 +203,7 @@ suspend fun fetchStorms(apiService: ApiService, onNewDataFetched: (StormImageDat
 
         try {
             val myImageBytes = apiService.getStormCompareImage(date, id)
-            Log.i("ApiService", "Fetched image from url")
+            Log.i("ApiService", "Fetched StormCompare image from url")
             val myBitmap = byteArrayToBitmap(myImageBytes)
             compareImageBitmap = myBitmap.asImageBitmap()
         } catch (e: Exception) {

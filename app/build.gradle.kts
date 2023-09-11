@@ -70,10 +70,10 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
     // For AppWidgets support
-    implementation("androidx.glance:glance-appwidget:1.0.0-rc01")
+    implementation("androidx.glance:glance-appwidget:1.0.0")
 
     // For Glance interop APIs with Material 3
-    implementation("androidx.glance:glance-material3:1.0.0-rc01")
+    implementation("androidx.glance:glance-material3:1.0.0")
 
     // Kotlin + coroutines (MAYBE JUST FOR GLANCE DEMO?)
     implementation("androidx.work:work-runtime-ktx:2.8.1")

@@ -30,7 +30,7 @@ class ApiService {
 
     suspend fun getStormImage(dateStr: String, stormId: String): ByteArray {
         val url = "$myBaseUrl/$dateStr/$stormId/ucar/image"
-        Log.i("ApiService", "Fetching image from url: $url")
+        Log.i("ApiService", "getStormImage fetching image from url: $url")
         return withContext(Dispatchers.IO) {
             val request = Request.Builder().url(url).build()
             client.newCall(request).execute().use { response ->
@@ -43,7 +43,7 @@ class ApiService {
 
     suspend fun getStormMyImage(dateStr: String, stormId: String): ByteArray {
         val url = "$myBaseUrl/$dateStr/$stormId/ucar/myimage"
-        Log.i("ApiService", "Fetching image from url: $url")
+        Log.i("ApiService", "getStormMyImage fetching image from url: $url")
         return withContext(Dispatchers.IO) {
             val request = Request.Builder().url(url).build()
             client.newCall(request).execute().use { response ->
@@ -56,7 +56,7 @@ class ApiService {
 
     suspend fun getStormCompareImage(dateStr: String, stormId: String): ByteArray {
         val url = "$myBaseUrl/$dateStr/$stormId/compare"
-        Log.i("ApiService", "Fetching image from url: $url")
+        Log.i("ApiService", "getStormCompareImage fetching image from url: $url")
         return withContext(Dispatchers.IO) {
             val request = Request.Builder().url(url).build()
             client.newCall(request).execute().use { response ->
@@ -68,21 +68,25 @@ class ApiService {
     }
 
     suspend fun getStormCompareImageList(): List<ByteArray> {
+        Log.i("ApiService", "getStormCompareImageList start")
         val fetchedStorms = getStorms()
         val storms = fetchedStorms["storms"] ?: emptyList()
 
         val listCompareImages = mutableListOf<ByteArray>()
+        Log.i("ApiService", "getStormCompareImageList found storms length: ${storms.size}")
         for (storm in storms) {
             // Launch a new coroutine for each storm
             val date = storm["date"] ?: continue
             val stormId = storm["id"] ?: continue
-            Log.i("ApiService", "stormId: $stormId")
+            Log.i("ApiService", "getStormCompareImageList looping stormId: $stormId")
             try {
                 val imageBytes = getStormCompareImage(date, stormId)
                 listCompareImages.add(imageBytes)
             } catch (e: Exception) {
-                Log.e("ApiService", "Failed to get stormId: $stormId with error $e")
-
+                Log.i(
+                    "ApiService",
+                    "getStormCompareImageList looping stormId: $stormId Failed with error $e\") "
+                )
             }
         }
         return listCompareImages
@@ -91,7 +95,7 @@ class ApiService {
 
     suspend fun getStorms(): Map<String, List<Map<String, String>>> {
         val url = "$myBaseUrl/"
-        Log.i("ApiService", "Calling url: $url")
+        Log.i("ApiService", "getStorms calling url: $url")
         return withContext(Dispatchers.IO) {
             val request = Request.Builder().url(url).build()
             client.newCall(request).execute().use { response ->

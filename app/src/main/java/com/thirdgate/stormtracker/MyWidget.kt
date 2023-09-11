@@ -6,6 +6,7 @@ import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.unit.DpSize
@@ -34,6 +35,7 @@ import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.appWidgetBackground
+import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.state.getAppWidgetState
 import androidx.glance.appwidget.state.updateAppWidgetState
@@ -42,9 +44,12 @@ import androidx.glance.background
 import androidx.glance.currentState
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
+import androidx.glance.layout.Column
 import androidx.glance.layout.ContentScale
+import androidx.glance.layout.Row
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
+import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.text.FontStyle
 import androidx.glance.text.Text
@@ -80,37 +85,41 @@ class MyWidget : GlanceAppWidget() {
             "Content: currentIndex=$currentIndex: check uri=$imagePath & rawPath=$rawPath"
         )
         GlanceTheme {
-            Box(
+            Column(
                 modifier = GlanceModifier
                     .fillMaxSize()
                     .appWidgetBackground()
                     .background(GlanceTheme.colors.background)
-                    .appWidgetBackgroundCornerRadius(),
-                contentAlignment = if (imagePath == null) {
-                    Alignment.Center
-                } else {
-                    Alignment.BottomEnd
-                },
+                    .cornerRadius(8.dp)
             ) {
                 if (imagePath != null && baseUri != null) {
                     Log.i("MyWidget", "Ready to load uri=$imagePath")
-                    Image(
-                        provider = getImageProvider(imagePath),
-                        contentDescription = null,
-                        contentScale = ContentScale.FillBounds,
-                        modifier = GlanceModifier
-                            .fillMaxSize()
-                    )
-                    Button(
-                        text = "NEXT", onClick = actionRunCallback<NextImageAction>(),
-                        modifier = GlanceModifier
-                            .fillMaxWidth()
-                            .padding(8.dp)
-                            .background(GlanceTheme.colors.primary)
-                    )
+                    Column() {
+                        Row(verticalAlignment = Alignment.Top) {
+                            Image(
+                                provider = getImageProvider(imagePath),
+                                contentDescription = null,
+                                contentScale = ContentScale.FillBounds,
+                                modifier = GlanceModifier.padding(bottom = 8.dp)
+                            )
+                        }
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Button(
+                                text = "NEXT", onClick = actionRunCallback<NextImageAction>(),
+                                modifier = GlanceModifier
+                                    .fillMaxWidth()
+                                    .background(GlanceTheme.colors.primary).height(20.dp)
+                            )
+                        }
+
+                    }
+
 
                 } else {
-                    Log.e("MyWidget", "Failing to load baseUri=$baseUri and imagePath=$imagePath")
+                    Log.e(
+                        "MyWidget",
+                        "Failing to load baseUri=$baseUri and imagePath=$imagePath"
+                    )
                     CircularProgressIndicator()
 
                     // Enqueue the worker after the composition is completed using the glanceId as
@@ -206,8 +215,7 @@ class NextImageAction : ActionCallback {
         }
         Log.i("MyWidget", "NextImageAction: glanceId=$glanceId Update Widget State before")
         // Call update to refresh the widget
-        //MyWidget().update(context, glanceId)
-        MyWidget().updateAll(context)
+        MyWidget().update(context, glanceId)
         Log.i("MyWidget", "NextImageAction: glanceId=$glanceId Update Widget State after")
 
 

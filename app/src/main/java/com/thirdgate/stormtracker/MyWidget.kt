@@ -47,6 +47,7 @@ import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.ContentScale
 import androidx.glance.layout.Row
+import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
@@ -94,26 +95,21 @@ class MyWidget : GlanceAppWidget() {
             ) {
                 if (imagePath != null && baseUri != null) {
                     Log.i("MyWidget", "Ready to load uri=$imagePath")
-                    Column() {
-                        Row(verticalAlignment = Alignment.Top) {
-                            Image(
-                                provider = getImageProvider(imagePath),
-                                contentDescription = null,
-                                contentScale = ContentScale.FillBounds,
-                                modifier = GlanceModifier.padding(bottom = 8.dp)
-                            )
-                        }
-                        Row(verticalAlignment = Alignment.Bottom) {
-                            Button(
-                                text = "NEXT", onClick = actionRunCallback<NextImageAction>(),
-                                modifier = GlanceModifier
-                                    .fillMaxWidth()
-                                    .background(GlanceTheme.colors.primary).height(20.dp)
-                            )
-                        }
+                    Box(contentAlignment = Alignment.BottomEnd) {
+
+                        Image(
+                            provider = getImageProvider(imagePath),
+                            contentDescription = null,
+                            contentScale = ContentScale.FillBounds,
+                            modifier = GlanceModifier
+                        )
+                        Button(
+                            text = "NEXT", onClick = actionRunCallback<NextImageAction>(),
+                            modifier = GlanceModifier
+                                .background(GlanceTheme.colors.primary)
+                        )
 
                     }
-
 
                 } else {
                     Log.e(

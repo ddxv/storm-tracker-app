@@ -75,6 +75,7 @@ class MyWidget : GlanceAppWidget() {
             "Content: start"
         )
         val widgetInfo = currentState<WidgetInfo>()
+        val stormData = widgetInfo.stormData
         val currentIndex = widgetInfo.currentIndex
         val baseUri = widgetInfo.baseUri
         val rawPath = widgetInfo.rawPath // Only for checking locations
@@ -93,36 +94,55 @@ class MyWidget : GlanceAppWidget() {
                     .background(GlanceTheme.colors.background)
                     .cornerRadius(8.dp)
             ) {
-                if (imagePath != null && baseUri != null) {
-                    Log.i("MyWidget", "Ready to load uri=$imagePath")
-                    Box(contentAlignment = Alignment.BottomEnd) {
-
-                        Image(
-                            provider = getImageProvider(imagePath),
-                            contentDescription = null,
-                            contentScale = ContentScale.FillBounds,
-                            modifier = GlanceModifier
+                when (stormData) {
+                    StormData.Loading -> {
+                        Log.e(
+                            "MyWidget",
+                            "spinning endlessly? to load baseUri=$baseUri and imagePath=$imagePath"
                         )
-                        Button(
-                            text = "NEXT", onClick = actionRunCallback<NextImageAction>(),
-                            modifier = GlanceModifier
-                                .background(GlanceTheme.colors.primary)
-                        )
-
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator()
+                            Text(
+                                "Data loading ...", style = TextStyle(
+                                    fontSize = 12.sp,
+                                    textAlign = TextAlign.Center,
+                                    color = GlanceTheme.colors.onBackground
+                                ), modifier = GlanceModifier.padding(20.dp)
+                            )
+                            Button("Refresh", actionRunCallback<RefreshAction>())
+                        }
                     }
 
-                } else {
-                    Log.e(
-                        "MyWidget",
-                        "Failing to load baseUri=$baseUri and imagePath=$imagePath"
-                    )
-                    CircularProgressIndicator()
+                    is StormData.Available -> {
+                        Log.i("MyWidget", "Ready to load uri=$imagePath")
+                        Box(contentAlignment = Alignment.BottomEnd) {
 
-                    // Enqueue the worker after the composition is completed using the glanceId as
-                    // tag so we can cancel all jobs in case the widget instance is deleted
-                    val glanceId = LocalGlanceId.current
-                    SideEffect {
-                        ImageWorker.enqueue(context, glanceId)
+                            Image(
+                                provider = getImageProvider(imagePath),
+                                contentDescription = null,
+                                contentScale = ContentScale.FillBounds,
+                                modifier = GlanceModifier
+                            )
+                            Button(
+                                text = "NEXT", onClick = actionRunCallback<NextImageAction>(),
+                                modifier = GlanceModifier
+                                    .background(GlanceTheme.colors.primary)
+                            )
+                        }
+                    }
+
+                    is StormData.Unavailable -> {
+                        Log.e(
+                            "MyWidget",
+                            "Failing to load baseUri=$baseUri and imagePath=$imagePath"
+                        )
+                        CircularProgressIndicator()
+                        // Enqueue the worker after the composition is completed using the glanceId as
+                        // tag so we can cancel all jobs in case the widget instance is deleted
+                        val glanceId = LocalGlanceId.current
+                        SideEffect {
+                            ImageWorker.enqueue(context, glanceId)
+                        }
                     }
                 }
             }
@@ -159,24 +179,6 @@ class MyWidget : GlanceAppWidget() {
     }
 }
 
-//class RefreshAction : ActionCallback {
-//    override suspend fun onAction(
-//        context: Context,
-//        glanceId: GlanceId,
-//        parameters: ActionParameters,
-//    ) {
-//
-//        MyWidget().update(context, glanceId)
-//
-//        // Enqueue a job for each size the widget can be shown in the current state
-//        // (i.e landscape/portrait)
-//
-//        GlanceAppWidgetManager(context).getAppWidgetSizes(glanceId).forEach { size ->
-//            ImageWorker.enqueue(context, glanceId, force = true)
-//        }
-//
-//    }
-//}
 
 class NextImageAction : ActionCallback {
     override suspend fun onAction(
@@ -217,6 +219,18 @@ class NextImageAction : ActionCallback {
 
     }
 
+}
+
+class RefreshAction : ActionCallback {
+    override suspend fun onAction(
+        context: Context,
+        glanceId: GlanceId,
+        parameters: ActionParameters
+    ) {
+        // Force the worker to refresh
+        ImageWorker.enqueue(context = context, glanceId = glanceId, force = true)
+        //MyWidget().update(context, glanceId)
+    }
 }
 
 

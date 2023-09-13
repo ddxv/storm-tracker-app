@@ -14,12 +14,15 @@ import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.work.CoroutineWorker
 import androidx.work.Data
+import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
+import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import java.io.File
+import java.time.Duration
 import java.util.concurrent.TimeUnit
 
 
@@ -34,26 +37,41 @@ class ImageWorker(
 
         fun enqueue(context: Context, glanceId: GlanceId, force: Boolean = false) {
             val manager = WorkManager.getInstance(context)
-            val requestBuilder = OneTimeWorkRequestBuilder<ImageWorker>().apply {
-                addTag(glanceId.toString())
-                setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-                setInputData(
-                    Data.Builder()
-                        .putBoolean("force", force)
-                        .build(),
+            if (force) {
+                val requestBuilder = OneTimeWorkRequestBuilder<ImageWorker>().apply {
+                    addTag(glanceId.toString())
+                    setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                    setInputData(
+                        Data.Builder()
+                            .putBoolean("force", force)
+                            .build(),
+                    )
+
+                }
+                val workPolicy = ExistingWorkPolicy.REPLACE
+                manager.enqueueUniqueWork(
+                    uniqueWorkName,
+                    workPolicy,
+                    requestBuilder.build(),
+                )
+            } else {
+                val requestBuilder =
+                    PeriodicWorkRequestBuilder<ImageWorker>(Duration.ofMinutes(30)).apply {
+                        addTag(glanceId.toString())
+                        setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                        setInputData(
+                            Data.Builder()
+                                .putBoolean("force", force)
+                                .build(),
+                        )
+                    }
+                val workPolicy = ExistingPeriodicWorkPolicy.KEEP
+                manager.enqueueUniquePeriodicWork(
+                    uniqueWorkName,
+                    workPolicy,
+                    requestBuilder.build(),
                 )
             }
-            val workPolicy = if (force) {
-                ExistingWorkPolicy.REPLACE
-            } else {
-                ExistingWorkPolicy.KEEP
-            }
-
-            manager.enqueueUniqueWork(
-                uniqueWorkName,
-                workPolicy,
-                requestBuilder.build(),
-            )
 
             // Temporary workaround to avoid WM provider to disable itself and trigger an
             // app widget update
@@ -79,10 +97,10 @@ class ImageWorker(
         val glanceIds = manager.getGlanceIds(MyWidget::class.java)
 
         Log.i("ImageWorker", "getting imageList!")
-        val r: Result = Result.failure()
+        var r: Result = Result.failure()
 
         // Update state with new data
-        val (baseUri, numImagesWI) = storeStormImages(stormType = "HIIII", context)
+        val (baseUri, numImagesWI, myStormData) = storeStormImages(context)
         glanceIds.forEach { glanceId ->
             try {
                 Log.i(
@@ -114,9 +132,8 @@ class ImageWorker(
                         "ImageWorker",
                         "LoopWidgets: glanceId: $glanceId, Fetch articles "
                     )
-
                     WidgetInfo(
-                        stormData = thisWidgetInfo.stormData,
+                        stormData = myStormData,
                         currentIndex = thisWidgetInfo.currentIndex,
                         numImagesWI = numImagesWI,
                         widgetGlanceId = thisWidgetInfo.widgetGlanceId,
@@ -124,16 +141,13 @@ class ImageWorker(
                         rawPath = "${context.cacheDir}/compareModels_${thisWidgetInfo.currentIndex}.jpg",
                     )
 
-                    // Can this much easier replace above???
-                    //thisWidgetInfo.copy(baseUri = baseUri)
-
                 }
                 MyWidget().update(context, glanceId)
-                val r = Result.success()
+                r = Result.success()
             } catch (e: Exception) {
-                Log.i(
+                Log.e(
                     "ImageWorker",
-                    "Looptime: Outside StateDefinition: this.glanceId: $glanceId"
+                    "Catch error this.glanceId: $glanceId $e"
                 )
                 updateAppWidgetState(
                     context = context,
@@ -154,36 +168,37 @@ class ImageWorker(
                 if (runAttemptCount < 10) {
                     // Exponential backoff strategy will avoid the request to repeat
                     // too fast in case of failures.
-                    val r = Result.retry()
+                    r = Result.retry()
                 } else {
-                    val r = Result.failure()
+                    r = Result.failure()
                 }
+                Log.e(
+                    "ImageWorker",
+                    "Catch error this.glanceId: $glanceId Returning"
+                )
             }
         }
         return r
     }
 
 
-    suspend fun storeStormImages(stormType: String, context: Context): Pair<String, Int> {
-        Log.i("ImageWorker", "Fetching stormType=$stormType")
+    suspend fun storeStormImages(
+        context: Context
+    ): Triple<String, Int, StormData> {
+        Log.i("ImageWorker", "Fetching storms from API")
         val apiService = ApiService()
         try {
-            val compareStormBytes: List<ByteArray> =
-                apiService.getStormCompareImageList()
-            Log.i(
-                "ImageWorker",
-                "ApiService returned: compareStormBytes {${compareStormBytes}}"
-            )
+            Log.i("ImageWorker", "ApiService: calling...")
+            val compareStormBytes: List<ByteArray> = apiService.getStormCompareImageList()
+            Log.i("ImageWorker", "ApiService returned: compareStormBytes {${compareStormBytes}}")
 
             val myNumImages = compareStormBytes.size
-
             val baseUri = "content://com.thirdgate.stormtracker.provider/cache_files"
 
             var index = 0
             for (myImg in compareStormBytes) {
 
                 val fileName = "compareModels_$index.jpg"
-
                 val imageFile = File(context.cacheDir, fileName).apply {
                     writeBytes(myImg)
                 }
@@ -217,7 +232,7 @@ class ImageWorker(
 
                 Log.i(
                     "ImageWorker",
-                    "Finished image $index uri=${contentUri.toString()} and baseUri=$baseUri and the fileName=$fileName"
+                    "Finished image $index uri=${contentUri} and baseUri=$baseUri and the fileName=$fileName"
                 )
 
                 index++
@@ -229,12 +244,12 @@ class ImageWorker(
             )
 
             val myMap = mapOf("CompareImages" to myStormInfo)
-            //val myStormData = StormData.Available(myMap)
+            val myStormData = StormData.Available(myMap)
 
-            return Pair(baseUri, myNumImages)
+            return Triple(baseUri, myNumImages, myStormData)
         } catch (e: Exception) {
             Log.e("ImageWorker", "Oops")
-            return Pair("null", 0)
+            return Triple("null", 0, StormData.Unavailable("Error in fetching images $e"))
         }
     }
 

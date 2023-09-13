@@ -17,7 +17,7 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="210dp"
     android:layout_height="186dp"
-    android:background="@drawable/image_widget_preview">
+    android:background="@drawable/storm_widget_preview">
 
     <TextView
         android:layout_width="match_parent"
@@ -25,7 +25,7 @@
         android:layout_gravity="bottom"
         android:gravity="end"
         android:padding="8dp"
-        android:text="Source: Unknown"
+        android:text="Data loading..."
         android:textAlignment="viewEnd"
         android:textSize="12sp"
         android:textStyle="italic" />

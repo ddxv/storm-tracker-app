@@ -101,6 +101,7 @@ class MyWidget : GlanceAppWidget() {
                     .background(GlanceTheme.colors.background)
                     .cornerRadius(8.dp)
             ) {
+                Log.i("MyWidget", "Content check when stormData=${stormData}")
                 when (stormData) {
                     StormData.Loading -> {
                         RetryLoadingContent(
@@ -111,7 +112,7 @@ class MyWidget : GlanceAppWidget() {
                     }
 
                     is StormData.Available -> {
-                        Log.i("MyWidget", "Ready to load uri=$imagePath")
+                        Log.i("MyWidget", "Content Available: Ready to load uri=$imagePath")
                         Box(contentAlignment = Alignment.BottomEnd) {
                             val myImageProvider = getImageProvider(context, imagePath)
                             Log.i("MyWidget", "Content: got imageProvider")
@@ -133,13 +134,13 @@ class MyWidget : GlanceAppWidget() {
                     is StormData.Unavailable -> {
                         Log.e(
                             "MyWidget",
-                            "Failing to load baseUri=$baseUri and imagePath=$imagePath"
+                            "Content Unavailable: Failing to load baseUri=$baseUri and imagePath=$imagePath"
                         )
                         CircularProgressIndicator()
                         // Enqueue the worker after the composition is completed using the glanceId as
                         // tag so we can cancel all jobs in case the widget instance is deleted
                         SideEffect {
-                            ImageWorker.enqueue(context, glanceId)
+                            //ImageWorker.enqueue(context, glanceId)
                         }
                     }
                 }
@@ -151,21 +152,21 @@ class MyWidget : GlanceAppWidget() {
     fun RetryLoadingContent(context: Context, glanceId: GlanceId, stormData: StormData) {
         // Declare a state to hold the retry count
         val retryCount = remember { mutableStateOf(0) }
-
-        // This composable gets launched within RetryLoadingContent
-        LaunchedEffect(retryCount.value, stormData) {
-            while (retryCount.value < 10 && stormData is StormData.Loading) {
-                MyWidget().update(context, glanceId)
-                // Increment retry count
-                retryCount.value += 1
-                // Pause between retries
-                delay(2000)  // 1 second
-                Log.e(
-                    "MyWidget",
-                    "Widget id:$glanceId spinning endlessly?"
-                )
-            }
-        }
+        Log.i("MyWidget", "Widget=$glanceId is Loading, try refreshing retryCount=$retryCount")
+//        // This composable gets launched within RetryLoadingContent
+//        LaunchedEffect(retryCount.value, stormData) {
+//            while (retryCount.value < 10 && stormData is StormData.Loading) {
+//                Log.i(
+//                    "MyWidget",
+//                    "Widget=$glanceId is Loading, try refreshing retryCount=$retryCount"
+//                )
+//                // Increment retry count
+//                retryCount.value += 1
+//                // Pause between retries
+//                delay(timeMillis = 10000000)  // 1 second
+//                MyWidget().update(context, glanceId)
+//            }
+//        }
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalAlignment = Alignment.Vertical.CenterVertically
@@ -304,8 +305,9 @@ class RefreshAction : ActionCallback {
         parameters: ActionParameters
     ) {
         // Force the worker to refresh
+        ImageWorker.cancel(context = context, glanceId = glanceId)
         ImageWorker.enqueue(context = context, glanceId = glanceId, force = true)
-        MyWidget().update(context, glanceId)
+        //MyWidget().update(context, glanceId)
     }
 }
 

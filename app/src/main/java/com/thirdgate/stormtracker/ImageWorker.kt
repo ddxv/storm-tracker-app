@@ -94,15 +94,28 @@ class ImageWorker(
 
     override suspend fun doWork(): Result {
         Log.i("ImageWorker", "doWork Start")
-
-        var r: Result = Result.failure()
-
-        // Update state with new data
-        val (baseUri, numImagesWI, myStormData) = storeStormImages(context)
-
         val manager = GlanceAppWidgetManager(context)
         val glanceIds = manager.getGlanceIds(MyWidget::class.java)
-        Log.i("ImageWorker", "doWork: finished storeStormImages, will loop glanceIds ${glanceIds}")
+        var r: Result = Result.failure()
+
+        if (glanceIds.size == 0) {
+            Log.i("ImageWorker", "doWork: no glanceIds=${glanceIds} return retry")
+            if (runAttemptCount < 10) {
+                // Exponential backoff strategy will avoid the request to repeat
+                // too fast in case of failures.
+                Log.i(
+                    "ImageWorker",
+                    "doWork failed: Set state to UnAvailable and Result.retry()"
+                )
+                r = Result.retry()
+            } else {
+                Log.i("ImageWorker", "doWork failed: runAttempt >= 10 return Result.failure()")
+                r = Result.failure()
+            }
+        }
+
+
+        Log.i("ImageWorker", "doWork: glanceIds=${glanceIds}")
         glanceIds.forEach { glanceId ->
             Log.i("ImageWorker", "doWork:forEach(glanceId=$glanceId start loop")
             try {
@@ -123,6 +136,8 @@ class ImageWorker(
                 )
                 Log.i("ImageWorker", "doWork:forEach(glanceId=$glanceId update widget to loading")
                 MyWidget().update(context, glanceId)
+                // Update state with new data
+                val (baseUri, numImagesWI, myStormData) = storeStormImages(context)
                 updateAppWidgetState(
                     context = context,
                     glanceId = glanceId,

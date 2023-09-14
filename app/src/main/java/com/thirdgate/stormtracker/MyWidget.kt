@@ -3,8 +3,10 @@ package com.thirdgate.stormtracker
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.os.Build
 import android.util.Log
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -111,13 +113,15 @@ class MyWidget : GlanceAppWidget() {
                     is StormData.Available -> {
                         Log.i("MyWidget", "Ready to load uri=$imagePath")
                         Box(contentAlignment = Alignment.BottomEnd) {
-
+                            val myImageProvider = getImageProvider(context, imagePath)
+                            Log.i("MyWidget", "Content: got imageProvider")
                             Image(
-                                provider = getImageProvider(imagePath),
+                                provider = myImageProvider,
                                 contentDescription = null,
                                 contentScale = ContentScale.FillBounds,
                                 modifier = GlanceModifier
                             )
+                            Log.i("MyWidget", "Content: Image created")
                             Button(
                                 text = "NEXT", onClick = actionRunCallback<NextImageAction>(),
                                 modifier = GlanceModifier
@@ -162,12 +166,13 @@ class MyWidget : GlanceAppWidget() {
                 )
             }
         }
-
-
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalAlignment = Alignment.Vertical.CenterVertically
+        ) {
             CircularProgressIndicator()
             Text(
-                "Data loading ...", style = TextStyle(
+                "Try refreshing ...", style = TextStyle(
                     fontSize = 12.sp,
                     textAlign = TextAlign.Center,
                     color = GlanceTheme.colors.onBackground
@@ -196,10 +201,53 @@ class MyWidget : GlanceAppWidget() {
      * More info:
      * https://developer.android.com/training/secure-file-sharing/share-file#GrantPermissions
      */
-    private fun getImageProvider(path: String): ImageProvider {
+    private fun setUriPermission(uri: Uri, context: Context) {
+        val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        val permissionResult = context.checkCallingOrSelfUriPermission(uri, flags)
+        val intent = Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_HOME) }
+
+        val resolveInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.packageManager.resolveActivity(
+                intent,
+                PackageManager.ResolveInfoFlags.of(PackageManager.MATCH_DEFAULT_ONLY.toLong()),
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            context.packageManager.resolveActivity(
+                intent,
+                PackageManager.MATCH_DEFAULT_ONLY,
+            )
+        }
+        val launcherName = resolveInfo?.activityInfo?.packageName
+
+        Log.i("MyWidget", "Check permission: launcherName=$launcherName")
+        if (launcherName != null) {
+            Log.i("MyWidget", "Lets try setting permission: launcherName=$launcherName")
+            context.grantUriPermission(
+                launcherName,
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION,
+            )
+        } else {
+            Log.e("ImageWorker", "launcherName was null, did not set permissions")
+        }
+
+        //return permissionResult == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun getImageProvider(context: Context, path: String): ImageProvider {
+        Log.i("MyWidget", "getImageProvider start")
         if (path.startsWith("content://")) {
-            Log.i("MyWidget", "getImageProvider for path=$path to pathtoUri=${path.toUri()}")
-            return ImageProvider(path.toUri())
+
+            val uriPath = path.toUri()
+            Log.i("MyWidget", "getImageProvider for path=$path to pathtoUri=$uriPath")
+            setUriPermission(uriPath, context)
+            val imageProvider = ImageProvider(uriPath)
+            Log.i(
+                "MyWidget",
+                "getImageProvider for path=$path to pathtoUri=$uriPath returning imageProvider=${imageProvider}"
+            )
+            return imageProvider
         }
         Log.i("MyWidget", "getImageProvider will return bitmap for $path")
         val bitmap = BitmapFactory.decodeFile(path)
@@ -257,7 +305,7 @@ class RefreshAction : ActionCallback {
     ) {
         // Force the worker to refresh
         ImageWorker.enqueue(context = context, glanceId = glanceId, force = true)
-        //MyWidget().update(context, glanceId)
+        MyWidget().update(context, glanceId)
     }
 }
 

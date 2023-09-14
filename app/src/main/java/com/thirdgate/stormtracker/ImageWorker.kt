@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
 import android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.util.Log
 import androidx.core.content.FileProvider.getUriForFile
@@ -95,19 +94,18 @@ class ImageWorker(
 
     override suspend fun doWork(): Result {
         Log.i("ImageWorker", "doWork Start")
-        val manager = GlanceAppWidgetManager(context)
-        val glanceIds = manager.getGlanceIds(MyWidget::class.java)
 
         var r: Result = Result.failure()
 
         // Update state with new data
         val (baseUri, numImagesWI, myStormData) = storeStormImages(context)
+
+        val manager = GlanceAppWidgetManager(context)
+        val glanceIds = manager.getGlanceIds(MyWidget::class.java)
+        Log.i("ImageWorker", "doWork: finished storeStormImages, will loop glanceIds ${glanceIds}")
         glanceIds.forEach { glanceId ->
+            Log.i("ImageWorker", "doWork:forEach(glanceId=$glanceId start loop")
             try {
-                Log.i(
-                    "ImageWorker",
-                    "doWork:forEach glanceId: Outside StateDefinition: this.glanceId: $glanceId"
-                )
                 updateAppWidgetState(
                     context = context,
                     definition = GlanceButtonWidgetStateDefinition(),
@@ -123,16 +121,13 @@ class ImageWorker(
                         )
                     }
                 )
+                Log.i("ImageWorker", "doWork:forEach(glanceId=$glanceId update widget to loading")
                 MyWidget().update(context, glanceId)
                 updateAppWidgetState(
                     context = context,
                     glanceId = glanceId,
                     definition = GlanceButtonWidgetStateDefinition()
                 ) { thisWidgetInfo ->
-                    Log.i(
-                        "ImageWorker",
-                        "LoopWidgets: glanceId: $glanceId, Fetch articles "
-                    )
                     WidgetInfo(
                         stormData = myStormData,
                         currentIndex = thisWidgetInfo.currentIndex,
@@ -143,7 +138,12 @@ class ImageWorker(
                     )
 
                 }
+                Log.i("ImageWorker", "doWork:forEach(glanceId=$glanceId Finished Data Update")
                 MyWidget().update(context, glanceId)
+                Log.i(
+                    "ImageWorker",
+                    "doWork:forEach(glanceId=$glanceId Finished Widget Update, returning success"
+                )
                 r = Result.success()
             } catch (e: Exception) {
                 Log.e(
@@ -169,8 +169,13 @@ class ImageWorker(
                 if (runAttemptCount < 10) {
                     // Exponential backoff strategy will avoid the request to repeat
                     // too fast in case of failures.
+                    Log.i(
+                        "ImageWorker",
+                        "doWork failed: Set state to UnAvailable and Result.retry()"
+                    )
                     r = Result.retry()
                 } else {
+                    Log.i("ImageWorker", "doWork failed: runAttempt >= 10 return Result.failure()")
                     r = Result.failure()
                 }
                 Log.e(
@@ -197,7 +202,7 @@ class ImageWorker(
             )
 
             val myNumImages = myImagesBytes.size
-            var baseUri = "content://com.thirdgate.stormtracker.provider/my_images"
+            var baseUri = "content://com.thirdgate.stormtracker.provider/my_files"
 
             Log.i(
                 "ImageWorker",
@@ -206,7 +211,6 @@ class ImageWorker(
 
             for ((index, myImg) in myImagesBytes.withIndex()) {
                 val fileName = "compareModels_$index.jpg"
-                //val imageFile = File(context.cacheDir, fileName).apply {
                 val imageFile = File(context.filesDir, fileName).apply {
                     writeBytes(myImg)
                 }

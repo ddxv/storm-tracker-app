@@ -8,7 +8,10 @@ import android.net.Uri
 import android.util.Log
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -57,6 +60,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextAlign
 import androidx.glance.text.TextDecoration
 import androidx.glance.text.TextStyle
+import kotlinx.coroutines.delay
 
 class MyWidget : GlanceAppWidget() {
 
@@ -80,6 +84,7 @@ class MyWidget : GlanceAppWidget() {
         val baseUri = widgetInfo.baseUri
         val rawPath = widgetInfo.rawPath // Only for checking locations
         val context = LocalContext.current
+        val glanceId = LocalGlanceId.current
 
         val imagePath = "$baseUri/compareModels_$currentIndex.jpg"
         Log.i(
@@ -96,21 +101,11 @@ class MyWidget : GlanceAppWidget() {
             ) {
                 when (stormData) {
                     StormData.Loading -> {
-                        Log.e(
-                            "MyWidget",
-                            "spinning endlessly? to load baseUri=$baseUri and imagePath=$imagePath"
+                        RetryLoadingContent(
+                            context = context,
+                            glanceId = glanceId,
+                            stormData = stormData
                         )
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator()
-                            Text(
-                                "Data loading ...", style = TextStyle(
-                                    fontSize = 12.sp,
-                                    textAlign = TextAlign.Center,
-                                    color = GlanceTheme.colors.onBackground
-                                ), modifier = GlanceModifier.padding(20.dp)
-                            )
-                            Button("Refresh", actionRunCallback<RefreshAction>())
-                        }
                     }
 
                     is StormData.Available -> {
@@ -139,13 +134,46 @@ class MyWidget : GlanceAppWidget() {
                         CircularProgressIndicator()
                         // Enqueue the worker after the composition is completed using the glanceId as
                         // tag so we can cancel all jobs in case the widget instance is deleted
-                        val glanceId = LocalGlanceId.current
                         SideEffect {
                             ImageWorker.enqueue(context, glanceId)
                         }
                     }
                 }
             }
+        }
+    }
+
+    @Composable
+    fun RetryLoadingContent(context: Context, glanceId: GlanceId, stormData: StormData) {
+        // Declare a state to hold the retry count
+        val retryCount = remember { mutableStateOf(0) }
+
+        // This composable gets launched within RetryLoadingContent
+        LaunchedEffect(retryCount.value, stormData) {
+            while (retryCount.value < 10 && stormData is StormData.Loading) {
+                MyWidget().update(context, glanceId)
+                // Increment retry count
+                retryCount.value += 1
+                // Pause between retries
+                delay(2000)  // 1 second
+                Log.e(
+                    "MyWidget",
+                    "Widget id:$glanceId spinning endlessly?"
+                )
+            }
+        }
+
+
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CircularProgressIndicator()
+            Text(
+                "Data loading ...", style = TextStyle(
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Center,
+                    color = GlanceTheme.colors.onBackground
+                ), modifier = GlanceModifier.padding(20.dp)
+            )
+            Button("Refresh", actionRunCallback<RefreshAction>())
         }
     }
 

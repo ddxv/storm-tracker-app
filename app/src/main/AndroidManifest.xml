@@ -21,9 +21,8 @@
         android:theme="@style/Theme.StormTracker"
         tools:targetApi="31">
         <activity
-            android:name=".MainActivity"
+            android:name="com.thirdgate.stormtracker.MainActivity"
             android:exported="true"
-            android:label="@string/app_name"
             android:theme="@style/Theme.StormTracker">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -33,7 +32,7 @@
         </activity>
 
         <receiver
-            android:name=".ImageGlanceWidgetReceiver"
+            android:name="com.thirdgate.stormtracker.ImageGlanceWidgetReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -45,7 +44,7 @@
 
 
         <provider
-            android:name=".ImageFileProvider"
+            android:name="com.thirdgate.stormtracker.ImageFileProvider"
             android:authorities="com.thirdgate.stormtracker.provider"
             android:exported="false"
             android:grantUriPermissions="true">

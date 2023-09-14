@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
 import android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.util.Log
 import androidx.core.content.FileProvider.getUriForFile
@@ -93,10 +94,10 @@ class ImageWorker(
     }
 
     override suspend fun doWork(): Result {
+        Log.i("ImageWorker", "doWork Start")
         val manager = GlanceAppWidgetManager(context)
         val glanceIds = manager.getGlanceIds(MyWidget::class.java)
 
-        Log.i("ImageWorker", "getting imageList!")
         var r: Result = Result.failure()
 
         // Update state with new data
@@ -105,7 +106,7 @@ class ImageWorker(
             try {
                 Log.i(
                     "ImageWorker",
-                    "Looptime: Outside StateDefinition: this.glanceId: $glanceId"
+                    "doWork:forEach glanceId: Outside StateDefinition: this.glanceId: $glanceId"
                 )
                 updateAppWidgetState(
                     context = context,
@@ -185,27 +186,49 @@ class ImageWorker(
     suspend fun storeStormImages(
         context: Context
     ): Triple<String, Int, StormData> {
-        Log.i("ImageWorker", "Fetching storms from API")
+        Log.i("ImageWorker", "storeStormImages Fetching storms from API")
         val apiService = ApiService()
         try {
-            Log.i("ImageWorker", "ApiService: calling...")
-            val compareStormBytes: List<ByteArray> = apiService.getStormCompareImageList()
-            Log.i("ImageWorker", "ApiService returned: compareStormBytes {${compareStormBytes}}")
+            Log.i("ImageWorker", "storeStormImages ApiService: calling...")
+            val myImagesBytes: List<ByteArray> = apiService.getStormCompareImageList()
+            Log.i(
+                "ImageWorker",
+                "storeStormImages ApiService returned: compareStormBytes {${myImagesBytes}}"
+            )
 
-            val myNumImages = compareStormBytes.size
-            val baseUri = "content://com.thirdgate.stormtracker.provider/cache_files"
+            val myNumImages = myImagesBytes.size
+            var baseUri = "content://com.thirdgate.stormtracker.provider/my_images"
 
-            var index = 0
-            for (myImg in compareStormBytes) {
+            Log.i(
+                "ImageWorker",
+                "storeImages: cache=${context.cacheDir} filesDir=${context.filesDir}"
+            )
 
+            for ((index, myImg) in myImagesBytes.withIndex()) {
                 val fileName = "compareModels_$index.jpg"
-                val imageFile = File(context.cacheDir, fileName).apply {
+                //val imageFile = File(context.cacheDir, fileName).apply {
+                val imageFile = File(context.filesDir, fileName).apply {
                     writeBytes(myImg)
                 }
+                Log.i("ImageWorker", "storeStormImages imageFile=$imageFile")
                 val contentUri = getUriForFile(
                     context,
                     "${applicationContext.packageName}.provider",
                     imageFile,
+                )
+
+                val baseAuthority = contentUri.authority
+                val firstPathSegment = contentUri.pathSegments.firstOrNull()
+
+                baseUri = if (baseAuthority != null && firstPathSegment != null) {
+                    "content://$baseAuthority/$firstPathSegment"
+                } else {
+                    baseUri
+                }
+
+                Log.i(
+                    "ImageWorker",
+                    "storeStormImages imageFile=$imageFile uri=$contentUri, baseUri=$baseUri"
                 )
                 // Find the current launcher every time to ensure it has read permissions
                 val intent = Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_HOME) }
@@ -222,24 +245,24 @@ class ImageWorker(
                     )
                 }
                 val launcherName = resolveInfo?.activityInfo?.packageName
+                Log.i("ImageWorker", "launcherName=$launcherName set permissions")
                 if (launcherName != null) {
                     context.grantUriPermission(
                         launcherName,
                         contentUri,
                         FLAG_GRANT_READ_URI_PERMISSION or FLAG_GRANT_PERSISTABLE_URI_PERMISSION,
                     )
+                } else {
+                    Log.e("ImageWorker", "launcherName was null, did not set permissions")
                 }
-
                 Log.i(
                     "ImageWorker",
-                    "Finished image $index uri=${contentUri} and baseUri=$baseUri and the fileName=$fileName"
+                    "Finished image=$index uri=${contentUri} and baseUri=$baseUri and the fileName=$fileName"
                 )
-
-                index++
             }
 
             val myStormInfo = StormData.StormInfo(
-                images = compareStormBytes,
+                images = myImagesBytes,
                 baseUri = baseUri
             )
 
@@ -248,7 +271,7 @@ class ImageWorker(
 
             return Triple(baseUri, myNumImages, myStormData)
         } catch (e: Exception) {
-            Log.e("ImageWorker", "Oops")
+            Log.e("ImageWorker", "storeStormImages failed due to $e")
             return Triple("null", 0, StormData.Unavailable("Error in fetching images $e"))
         }
     }

@@ -180,9 +180,6 @@ suspend fun fetchStorms(apiService: ApiService, onNewDataFetched: (StormImageDat
 
     val storms = fetchedStorms.storms
 
-    // This will hold our data after checking for images
-    val stormsWithImageData = mutableListOf<StormImageData>()
-
     storms.forEach { storm ->
         // Launch a new coroutine for each storm
         val id = storm.id
@@ -190,6 +187,7 @@ suspend fun fetchStorms(apiService: ApiService, onNewDataFetched: (StormImageDat
         var imageBitmap: ImageBitmap? = null
         var myImageBitmap: ImageBitmap? = null
         var compareImageBitmap: ImageBitmap? = null
+        var spaghettiImageBitmap: ImageBitmap? = null
 
         if (apiService.hasStormImage(date, id)) {
             val imageBytes = apiService.getStormImage(date, id)
@@ -216,12 +214,22 @@ suspend fun fetchStorms(apiService: ApiService, onNewDataFetched: (StormImageDat
             // Handle error or just log it
         }
 
+        try {
+            val myImageBytes = apiService.getStormSpaghettiImage(date, id)
+            Log.i("ApiService", "Fetched StormCompare image from url")
+            val myBitmap = byteArrayToBitmap(myImageBytes)
+            spaghettiImageBitmap = myBitmap.asImageBitmap()
+        } catch (e: Exception) {
+            // Handle error or just log it
+        }
+
         onNewDataFetched(
             StormImageData(
                 storm,
                 imageBitmap,
                 myImageBitmap,
-                compareImageBitmap
+                compareImageBitmap,
+                spaghettiImageBitmap
             )
         )
     }
@@ -232,7 +240,16 @@ fun DisplayStormPlots(stormsData: List<StormImageData>) {
 
     LazyColumn {
         items(stormsData.size) { index ->
-            val (storm, imageBitmap, myImageBitmap, compareImageBitmap) = stormsData[index]
+            //val (storm, imageBitmap, myImageBitmap, compareImageBitmap, spaghettiImageBitmap) = stormsData[index]
+
+            val stormDataItem = stormsData[index]
+            val storm = stormDataItem.basicStormInfo
+            val imageBitmap = stormDataItem.imageBitmap
+            val myImageBitmap = stormDataItem.myImageBitmap
+            val compareImageBitmap = stormDataItem.compareImageBitmap
+            val spaghettiImageBitmap = stormDataItem.spaghettiImageBitmap
+
+
             val id = storm.id
             val date = storm.date
             val titleSize = 22.sp
@@ -290,6 +307,18 @@ fun DisplayStormPlots(stormsData: List<StormImageData>) {
                 )
             }
 
+            Text(
+                "historical comparison of model. Each line is a different forecast, usually once every 6 hours",
+                modifier = Modifier.padding(top = 10.dp),
+                style = TextStyle(fontSize = descriptionSize)
+            )
+
+            spaghettiImageBitmap?.let {
+                Image(
+                    bitmap = it,
+                    contentDescription = "Spaghetti Image for $id"
+                )
+            }
 
             Spacer(modifier = Modifier.padding(10.dp))
             Divider()

@@ -6,5 +6,6 @@ data class StormImageData(
     val basicStormInfo: BasicStormInfo,
     val imageBitmap: ImageBitmap?,
     val myImageBitmap: ImageBitmap?,
-    val compareImageBitmap: ImageBitmap?
+    val compareImageBitmap: ImageBitmap?,
+    val spaghettiImageBitmap: ImageBitmap?
 )

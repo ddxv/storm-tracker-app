@@ -54,6 +54,18 @@ class ApiService {
         }
     }
 
+    suspend fun getStormSpaghettiImage(dateStr: String, stormId: String): ByteArray {
+        val url = "$myBaseUrl/$dateStr/$stormId/spaghetti"
+        Log.i("ApiService", "getStormSpaghettiImage fetching image from url: $url")
+        return withContext(Dispatchers.IO) {
+            val request = Request.Builder().url(url).build()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) throw IOException("Unexpected code $response")
+                response.body?.bytes() ?: throw IOException("Response body is null")
+            }
+        }
+    }
+
     suspend fun getStormCompareImage(dateStr: String, stormId: String): ByteArray {
         val url = "$myBaseUrl/$dateStr/$stormId/compare"
         Log.i("ApiService", "getStormCompareImage fetching image from url: $url")

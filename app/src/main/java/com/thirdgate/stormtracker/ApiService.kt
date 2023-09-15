@@ -70,14 +70,14 @@ class ApiService {
     suspend fun getStormCompareImageList(): List<ByteArray> {
         Log.i("ApiService", "getStormCompareImageList start")
         val fetchedStorms = getStorms()
-        val storms = fetchedStorms["storms"] ?: emptyList()
+        val storms = fetchedStorms.storms
 
         val listCompareImages = mutableListOf<ByteArray>()
         Log.i("ApiService", "getStormCompareImageList found storms length: ${storms.size}")
         for (storm in storms) {
             // Launch a new coroutine for each storm
-            val date = storm["date"] ?: continue
-            val stormId = storm["id"] ?: continue
+            val date = storm.date
+            val stormId = storm.id
             Log.i("ApiService", "getStormCompareImageList looping stormId: $stormId")
             try {
                 val imageBytes = getStormCompareImage(date, stormId)
@@ -93,25 +93,27 @@ class ApiService {
     }
 
 
-    suspend fun getStorms(): Map<String, List<Map<String, String>>> {
+    suspend fun getStorms(): ActiveStorms {
+        // API returns {"storms": [{"id": "ALXX", "date": "2022-02-2"} ] }
         val url = "$myBaseUrl/"
         Log.i("ApiService", "getStorms calling url: $url")
-        return withContext(Dispatchers.IO) {
-            val request = Request.Builder().url(url).build()
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) throw IOException("Unexpected code $response")
-                val bodyString =
-                    response.body?.string() ?: throw IOException("Response body is null")
 
-                // Define the type for Gson parsing
-                val type = object : TypeToken<Map<String, List<Map<String, String>>>>() {}.type
-
-                // Parse the JSON response
-                val myMap: Map<String, List<Map<String, String>>> = gson.fromJson(bodyString, type)
-
-                myMap
-            }
+        val request = Request.Builder().url(url).build()
+        val response = withContext(Dispatchers.IO) {
+            client.newCall(request).execute()
         }
+
+        if (!response.isSuccessful) {
+            throw IOException("Unexpected code $response")
+        }
+
+        val bodyString = response.body?.string() ?: throw IOException("Response body is null")
+
+        // Close the response after usage
+        response.close()
+
+        // Parse the JSON response directly into ActiveStorms
+        return gson.fromJson(bodyString, ActiveStorms::class.java)
     }
 
     suspend fun hasStormImage(dateStr: String, stormId: String): Boolean {

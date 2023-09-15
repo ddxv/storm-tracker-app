@@ -1,5 +1,6 @@
 package com.thirdgate.stormtracker
 
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Bundle
@@ -18,6 +19,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,10 +41,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.modifier.modifierLocalConsumer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
+import androidx.compose.ui.unit.sp
 
 
 class MainActivity : ComponentActivity() {
@@ -89,6 +91,8 @@ fun MainScreen(stormsData: List<StormImageData>) {
     var selectedTab by remember { mutableStateOf(0) }
     var showMenu by remember { mutableStateOf(false) }
 
+    val context = LocalContext.current
+
     val articleType = when (selectedTab) {
         0 -> "Plots"
         1 -> "NotSet"
@@ -115,7 +119,11 @@ fun MainScreen(stormsData: List<StormImageData>) {
                         DropdownMenuItem(
                             modifier = Modifier.background(color = MaterialTheme.colorScheme.background),
                             text = { Text(text = "About App") },
-                            onClick = {}
+                            onClick = {      // Create and launch the Intent here
+                                val intent = Intent(context, AboutActivity::class.java)
+                                context.startActivity(intent)
+                                showMenu = false  // close the menu after launching the activity}
+                            }
                         )
                     }
                 }
@@ -154,7 +162,7 @@ fun MainScreen(stormsData: List<StormImageData>) {
         ) {
             when (selectedTab) {
                 0 -> {
-                    FetchAndDisplayStorms(stormsData)
+                    DisplayStormPlots(stormsData)
                 }
 
                 1 -> {
@@ -172,15 +180,15 @@ fun MainScreen(stormsData: List<StormImageData>) {
 suspend fun fetchStorms(apiService: ApiService, onNewDataFetched: (StormImageData) -> Unit) {
     val fetchedStorms = apiService.getStorms()
 
-    val storms = fetchedStorms["storms"] ?: emptyList()
+    val storms = fetchedStorms.storms
 
     // This will hold our data after checking for images
     val stormsWithImageData = mutableListOf<StormImageData>()
 
     storms.forEach { storm ->
         // Launch a new coroutine for each storm
-        val id = storm["id"] ?: ""
-        val date = storm["date"] ?: ""
+        val id = storm.id
+        val date = storm.date
         var imageBitmap: ImageBitmap? = null
         var myImageBitmap: ImageBitmap? = null
         var compareImageBitmap: ImageBitmap? = null
@@ -222,20 +230,32 @@ suspend fun fetchStorms(apiService: ApiService, onNewDataFetched: (StormImageDat
 }
 
 @Composable
-fun FetchAndDisplayStorms(stormsData: List<StormImageData>) {
-    val context = LocalContext.current
-
-
-
+fun DisplayStormPlots(stormsData: List<StormImageData>) {
 
     LazyColumn {
         items(stormsData.size) { index ->
-            //val (storm, imageBitmap, myImageBitmap, compareImageBitmap) = StormImageData[index]
             val (storm, imageBitmap, myImageBitmap, compareImageBitmap) = stormsData[index]
-            val id = storm["id"] ?: ""
-            val date = storm["date"] ?: ""
+            val id = storm.id
+            val date = storm.date
+            val titleSize = 22.sp
+            val descriptionSize = 14.sp
 
-            Text("$id - $date - troPYcal", modifier = Modifier.padding(top = 10.dp))
+            Text(
+                "Storm ID: $id",
+                modifier = Modifier.padding(top = 10.dp, bottom = 2.dp),
+                style = TextStyle(fontSize = titleSize)
+            )
+            Text(
+                "Forecast date: $date",
+                modifier = Modifier.padding(top = 10.dp, bottom = 2.dp),
+                style = TextStyle(fontSize = descriptionSize)
+            )
+
+            Text(
+                "description: troPYcal",
+                modifier = Modifier.padding(top = 10.dp),
+                style = TextStyle(fontSize = descriptionSize)
+            )
             imageBitmap?.let {
                 Image(
                     bitmap = it,
@@ -244,7 +264,12 @@ fun FetchAndDisplayStorms(stormsData: List<StormImageData>) {
             }
             //Spacer(modifier = Modifier.padding(10.dp))
 
-            Text("$id - $date - my plot", modifier = Modifier.padding(top = 10.dp, bottom = 2.dp))
+
+            Text(
+                "description: Orthographic Projection",
+                modifier = Modifier.padding(top = 10.dp),
+                style = TextStyle(fontSize = descriptionSize)
+            )
             myImageBitmap?.let {
                 Image(
                     bitmap = it,
@@ -253,16 +278,25 @@ fun FetchAndDisplayStorms(stormsData: List<StormImageData>) {
                     )
             }
 
-            //Spacer(modifier = Modifier.padding(10.dp))
 
-            Text("$id - $date - compare plot", modifier = Modifier.padding(top = 10.dp))
+            Text(
+                "description: Model comparison, each line represents a different weather model",
+                modifier = Modifier.padding(top = 10.dp),
+                style = TextStyle(fontSize = descriptionSize)
+            )
+
             compareImageBitmap?.let {
                 Image(
                     bitmap = it,
                     contentDescription = "Comparison Image for $id"
                 )
             }
+
+
+            Spacer(modifier = Modifier.padding(10.dp))
+            Divider()
         }
+
     }
 }
 

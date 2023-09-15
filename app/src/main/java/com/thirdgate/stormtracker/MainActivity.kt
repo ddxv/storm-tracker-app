@@ -95,8 +95,6 @@ fun MainScreen(stormsData: List<StormImageData>) {
 
     val articleType = when (selectedTab) {
         0 -> "Plots"
-        1 -> "NotSet"
-        2 -> "NotSet"
         else -> "A"
     }
 
@@ -140,18 +138,18 @@ fun MainScreen(stormsData: List<StormImageData>) {
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 }
                 )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.Star, contentDescription = null) },
-                    label = { Text("NotSet") },
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 }
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.List, contentDescription = null) },
-                    label = { Text("NotSet") },
-                    selected = selectedTab == 2,
-                    onClick = { selectedTab = 2 }
-                )
+//                NavigationBarItem(
+//                    icon = { Icon(Icons.Default.Star, contentDescription = null) },
+//                    label = { Text("NotSet") },
+//                    selected = selectedTab == 1,
+//                    onClick = { selectedTab = 1 }
+//                )
+//                NavigationBarItem(
+//                    icon = { Icon(Icons.Default.List, contentDescription = null) },
+//                    label = { Text("NotSet") },
+//                    selected = selectedTab == 2,
+//                    onClick = { selectedTab = 2 }
+//                )
             }
         }
     ) { padding ->
@@ -165,13 +163,13 @@ fun MainScreen(stormsData: List<StormImageData>) {
                     DisplayStormPlots(stormsData)
                 }
 
-                1 -> {
-                    Text("B")
-                }
-
-                2 -> {
-                    Text("C")
-                }
+//                1 -> {
+//                    Text("B")
+//                }
+//
+//                2 -> {
+//                    Text("C")
+//                }
             }
         }
     }

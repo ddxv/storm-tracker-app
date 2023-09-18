@@ -17,7 +17,6 @@ import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.ColumnScope
 import androidx.glance.layout.fillMaxSize
-import androidx.glance.layout.padding
 
 /**
  * Provide a Box composable using the system parameters for app widgets background with rounded

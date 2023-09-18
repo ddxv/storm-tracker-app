@@ -111,6 +111,7 @@ class MyWidget : GlanceAppWidget() {
                                     .background(GlanceTheme.colors.primary)
                             )
                         }
+                        ImageWorker.enqueue(context, glanceId)
                     }
 
                     is StormData.Unavailable -> {
@@ -119,11 +120,7 @@ class MyWidget : GlanceAppWidget() {
                             "Content Unavailable: Failing to load baseUri=$baseUri and imagePath=$imagePath"
                         )
                         CircularProgressIndicator()
-                        // Enqueue the worker after the composition is completed using the glanceId as
                         // tag so we can cancel all jobs in case the widget instance is deleted
-                        SideEffect {
-                            //ImageWorker.enqueue(context, glanceId)
-                        }
                     }
                 }
             }

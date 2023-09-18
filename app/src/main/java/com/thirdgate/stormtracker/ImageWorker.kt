@@ -36,8 +36,10 @@ class ImageWorker(
         private val uniqueWorkName = ImageWorker::class.java.simpleName
 
         fun enqueue(context: Context, glanceId: GlanceId, force: Boolean = false) {
+            Log.i("ImageWorker", "Enqueue: start")
             val manager = WorkManager.getInstance(context)
             if (force) {
+                Log.i("ImageWorker", "Enqueue: Onetime worker")
                 val requestBuilder = OneTimeWorkRequestBuilder<ImageWorker>().apply {
                     addTag(glanceId.toString())
                     setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
@@ -54,27 +56,29 @@ class ImageWorker(
                     workPolicy,
                     requestBuilder.build(),
                 )
+                Log.i("ImageWorker", "Enqueue: Onetime worker enqueued")
             } else {
+                Log.i("ImageWorker", "Enqueue: Periodic worker")
                 val requestBuilder =
-                    PeriodicWorkRequestBuilder<ImageWorker>(Duration.ofMinutes(30)).apply {
-                        addTag(glanceId.toString())
-                        setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                    PeriodicWorkRequestBuilder<ImageWorker>(Duration.ofMinutes(60)).apply {
+                        addTag("${glanceId}_periodic")
                         setInputData(
                             Data.Builder()
-                                .putBoolean("force", force)
+                                .putBoolean("force", false)
                                 .build(),
                         )
                     }
-                val workPolicy = ExistingPeriodicWorkPolicy.KEEP
                 manager.enqueueUniquePeriodicWork(
                     uniqueWorkName,
-                    workPolicy,
+                    ExistingPeriodicWorkPolicy.KEEP,
                     requestBuilder.build(),
                 )
+                Log.i("ImageWorker", "Enqueue: Periodic worker enqueued")
             }
 
             // Temporary workaround to avoid WM provider to disable itself and trigger an
             // app widget update
+            Log.i("ImageWorker", "Enqueue: workaround")
             manager.enqueueUniqueWork(
                 "$uniqueWorkName-workaround",
                 ExistingWorkPolicy.KEEP,
@@ -82,6 +86,7 @@ class ImageWorker(
                     setInitialDelay(365, TimeUnit.DAYS)
                 }.build(),
             )
+            Log.i("ImageWorker", "Enqueue: finished")
         }
 
         /**

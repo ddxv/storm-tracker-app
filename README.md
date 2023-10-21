@@ -15,4 +15,4 @@ The app can be downloaded from Google Play:
 ## Setup
 
 1. Clone repo and open with Android Studio.  Ensure gradle and libraries build properly.
-2. App is built to use an API which scrapes and preprocesses storm data. The code for that can be found: <https://github.com/ddxv/stormtracker>
+2. App is built to use an API which scrapes and preprocesses storm data. The code for that can be found: <https://github.com/ddxv/storm-tracker>
